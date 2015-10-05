@@ -1,0 +1,282 @@
+body {
+    background-color: #21262C;
+}
+
+#mets {
+    position: relative;
+    margin-left: auto;
+    margin-right: auto;
+    background-color: #667587;
+    text-align: center;
+    -webkit-border-radius: 9;
+    -moz-border-radius: 9;
+    border-radius: 9px;
+    padding: 4px;
+    padding-bottom: 0px;
+    max-width: 610px;
+    border: solid 18px #2E343D;
+}
+#mets > span {
+    font-size: 25pt;
+    font-weight: bold;
+    color: azure;
+    margin: 5px;
+}
+.met {/*
+    background: #6393c1; 
+    background: -moz-linear-gradient(-45deg, #6393c1 0%, #b3c8d8 100%); 
+    background: -webkit-gradient(linear, left top, right bottom, color-stop(0%,#6393c1), color-stop(100%,#b3c8d8)); 
+    background: -webkit-linear-gradient(-45deg, #6393c1 0%,#b3c8d8 100%); 
+    background: -o-linear-gradient(-45deg, #6393c1 0%,#b3c8d8 100%); 
+    background: -ms-linear-gradient(-45deg, #6393c1 0%,#b3c8d8 100%); 
+    background: linear-gradient(135deg, #6393c1 0%,#b3c8d8 100%); 
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#6393c1', endColorstr='#b3c8d8',GradientType=1 ); /* IE6-9 fallback on horizontal gradient */
+    background: #acbece; /* Old browsers */
+    /*background: -moz-linear-gradient(-45deg, #a2b1bf 0%, #b3c8d8 100%); 
+    background: -webkit-gradient(linear, left top, right bottom, color-stop(0%,#a2b1bf), color-stop(100%,#b3c8d8)); 
+    background: -webkit-linear-gradient(-45deg, #a2b1bf 0%,#b3c8d8 100%); 
+    background: -o-linear-gradient(-45deg, #a2b1bf 0%,#b3c8d8 100%); 
+    background: -ms-linear-gradient(-45deg, #a2b1bf 0%,#b3c8d8 100%); 
+    background: linear-gradient(135deg, #a2b1bf 0%,#b3c8d8 100%); 
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#a2b1bf', endColorstr='#b3c8d8',GradientType=1 ); /* IE6-9 fallback on horizontal gradient */
+    -webkit-border-radius: 9;
+    -moz-border-radius: 9;
+    border-radius: 9px;
+    font-weight: bold;
+    color: #EFF0DF;
+    padding-bottom: 10px;
+    padding-right: 30px;
+    padding-left: 17px;
+    padding-top: 0px;
+    max-width: 590px;
+    margin-top: 3px;
+    margin-bottom: 3px;
+    position: relative;
+}
+input {
+    margin-left: 5px;
+    margin-right: 5px;
+    border-radius: 3px;
+    border-width: 1px;
+}
+input:not([type=checkbox]) {
+    opacity: .88;
+}
+button {
+    cursor: pointer;
+}
+.met span {
+    white-space: nowrap;
+    margin: 1px;
+    margin-top: 10px;
+    display: inline-block;
+}
+.met .close {
+    padding-bottom: 2px;
+    position: absolute;
+    right: 7px;
+    top: 11px;
+    border-radius: 100%;
+    width: 25px;
+    height: 25px;
+    color: #667587;
+    font-weight: bolder;
+    background-color: transparent;
+    border: solid 0px #667587;
+}
+.met .solo {
+    line-height: 0;
+    padding: 0px;
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    font-size: 8;
+    width: 15px;
+    height: 15px;
+    background-color: transparent;
+    border: solid 0px;
+    color: #667587;
+}
+.met .mute {
+    line-height: 0;
+    padding: 0px;
+    position: absolute;
+    left: 4px;
+    bottom: 6px;
+    font-size: 8;
+    width: 15px;
+    height: 15px;
+    background-color: transparent;
+    border: solid 0px;
+    color: #667587;
+}
+#controls {
+    
+    width: inherit;
+    text-align: center;
+    margin-top: 15px;
+    
+}
+#controlWrap {
+    position: relative;
+    color: bisque;
+    font-weight: bold;
+    padding: 8px;
+    display: inline-block;
+    background-color: #d0b98c;
+    /*-webkit-border-radius: 9;
+    -moz-border-radius: 9;*/
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    /*border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;*/
+}/*
+#controlWrap button {
+    padding-bottom: 2px;
+    opacity: 1;
+    font-weight: bold;
+    color: #ad935f;
+    background-color: transparent;
+    border-radius: 5px;
+    border: solid 2px #ad935f;
+}*/
+#controlWrap span {
+    white-space: nowrap;
+    margin: 1px;
+    display: inline-block;
+}
+#controlWrap span:last-of-type {
+    margin-right: 48px;
+}
+#controlWrap a {
+    color: bisque;
+    cursor: pointer;
+}
+#tapTempoEle {
+    background-color: transparent;
+    border: solid 0px;
+    color: bisque;
+    font-weight: bold;
+    font-size: 12pt;
+    font-family: inherit;
+    padding: 0px;
+    margin: 0px;
+}
+.helpButton {
+    line-height: 0;
+    padding: 0px;
+    position: absolute;
+    right: 11px;
+    top: 11px;
+    width: 20px;
+    height: 15px;
+    color: #EFF0DF;
+    font-weight: bolder;
+    background-color: transparent;
+    border: solid 0px black;
+}
+.help {
+    padding: 20px;
+    text-align: left;
+    position: absolute;
+    background-color: azure;
+    top: -18px;
+    left: -18px;
+}
+.closeHelp {
+}
+#moreOptns {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    line-height: 0;
+    padding: 0px;
+    width: 42px;
+    height: 15px;
+    color: #EFF0DF;
+    background-color: transparent;
+    border: solid 0px black;
+}
+.options {
+    font-weight: normal;
+    position: absolute;
+    background-color: #BBA67E;
+    left: 0px;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+    padding: 4px;
+    padding-bottom: 25px;
+    text-align: right;
+}
+.options button {
+    margin: 1px;
+    display: block;
+}
+.options textarea {
+    margin-right: 4px;
+    opacity: .5;
+}
+.options > div {
+    display: inline-block;
+    border: solid 2px #A89571;
+    padding-left: 4px;
+    padding-top: 4px;
+    padding-right: 4px;
+    padding-bottom: 4px;
+    margin: 1px;
+    float: left;
+}
+
+#randomMute {
+    width: 23px;
+    text-align: right;
+    margin: 0;
+}
+#randomMuteTime {
+    width: 23px;
+    text-align: right;
+    margin: 0;
+}
+.setMute {
+    width: 35px;
+    margin: 2px;
+}
+
+@media screen and (max-width: 610px) {
+    #mets {
+        border: 0px;
+        border-radius: 0px;
+        padding: 0px;
+        background-color: #21262C;
+    }
+   
+    body {
+        margin: 0px;
+    }
+    #controlWrap {
+        display:block;
+        border-radius: 0px;
+    }
+    #new, #start, #stop {
+        padding: 10px;
+    }
+    #tapTempoEle {
+        border: solid 1px bisque;
+        padding: 10px;
+    }
+    #controlWrap span {
+        margin-top: 10px;
+    }
+    .met span {
+        margin-top: 10px;
+    }
+    .met {
+        padding-top: 10px;
+    }
+    .help {
+    padding: 5px;
+    padding-bottom: 25px;
+    top: 0px;
+    left: 0px;
+    }
+}

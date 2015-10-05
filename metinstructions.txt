@@ -1,0 +1,122 @@
+<b>Pronome Instructions</b><br>
+<br>Pronome is a tool for musicians that lets you create multiple beat layers, each containing it's own looping rhythmic pattern.<br>
+<br>
+Topics:
+<ol type="1">
+<li><a href="javascript:(function(){document.querySelectorAll('a')[8].scrollIntoView();})();">Creating a beat</a>
+<ol type="i">
+<li>Basic rhythms</li>
+<li>Expressions</li>
+<li>Single cell repeats</li>
+<li>Multiple cell repeats</li>
+</ol></li>
+<li><a href="javascript:(function(){document.querySelectorAll('a')[9].scrollIntoView();})();" >Setting the pitch</a>
+<ol type="i">
+<li>Changing the pitch of a layer</li>
+<li>Changing the pitch of individual cells</li>
+</ol></li>
+<li><a href="javascript:(function(){document.querySelectorAll('a')[10].scrollIntoView();})();">Controlling the volume of a layer</a></li>
+<li><a href="javascript:(function(){document.querySelectorAll('a')[11].scrollIntoView();})();">Offset parameter</a></li>
+<li><a href="javascript:(function(){document.querySelectorAll('a')[12].scrollIntoView();})();">Muting, Soloing, and Deleting a layer</a></li>
+<li><a href="javascript:(function(){document.querySelectorAll('a')[13].scrollIntoView();})();">Master Controls</a>
+<ol type="i">
+<li>Add Layer</li>
+<li>Start</li>
+<li>Stop</li>
+<li>Tempo</li>
+<li>Master Volume</li>
+</ol></li>
+<li><a href="javascript:(function(){document.querySelectorAll('a')[14].scrollIntoView();})();">Additional Options</a>
+<ol type="i">
+<li>Saving a beat</li>
+<li>Importing and Exporting a beat</li>
+<li>Random Mute</li>
+<li>Audible and Silent intervals</li>
+<li>Visualizing with Graphs and Pulse</li>
+<li>Beep option</li>
+</ol></li>
+<li><a href="javascript:(function(){document.querySelectorAll('a')[15].scrollIntoView();})();">Example Beats</a></li>
+</ol>
+<br>
+
+
+<br>
+<a name="beat"></a>1. Creating a Beat<br>
+To create the rhythm of a beat layer, enter one or more values seperated by commas into the '<b>Beat</b>' input. These values are the 'beat cells.' Pronome uses a numeric rhythmic notation in which '1' represents a quarter-note time value. Using some basic math, you can determine the numeric value of any rhythmic unit based upon it's relationship to the quarter-note pulse.<br>
+For example:<br>
+If you enter '<b>1</b>,' you will get a loop containing a single quarter-note.<br>
+'<b>2, .5, 1</b>' will give you a half-note followed by an eighth-note then a quarter-note. A half-note is two quarter-notes, therefore if a quarter note is 1 then a half-note equals 2. An eighth-note is one half of a quarter-note, so by dividing 1 by 2 we get '.5'. The spaces after the commas are optional.<br>
+<br>
+The beat layers can have as many cells as you want. By making a beat layer longer or shorter than another beat layer, you can create any imaginable cross-rhythm or hemiola.<br>
+<br>
+In addition to simple values, you can also enter mathmatical expressions using the +, -, *, and / operators.<br>
+For example:<br>
+'<b>1/4, 1/3 + 1</b>' will give you a 16th-note then a triplet 8th-note tied to a quarter-note.<br>
+'<b>.5*4, 3/2 - 1/5</b>' will give you four eighth-notes that are tied together (equal to one half-note) and then
+a dotted quarter-note with a quintuplet eighth-note subtracted out (equal to a quarter-note plus 3/10ths of a quarter-note).<br>
+<i>Note: Expressions are evaluated using the standard order of operations, except that parenthesis are not used for grouping or multiplying terms. You can use '*' or 'x' as the multiplication operator.</i><br>
+<br>
+There are several notation shortcuts for entering beats that have repeating cells. When entering a beat containing a cell that is repeated consecutively such as '<b>1,1,1,1,1,.5</b>', you can use the '<b>(x)</b>' modifier, where x is the number of times to repeat. For example, '<b>1,1,1,1,1,.5</b>' can be rewritten as '<b>1(5),.5</b>'. <br>If you want to repeat a cell but then add or subtract a value from the last copy, you can put in an expression after the closing parentheses. For instance, '<b>1+1/2(12)+.25, 1/3(5)-1/4</b>' will yield 12 dotted quarter-notes with a sixteenth-note added on to the 12th dotted quarter and then 5 triplet eighth-notes with the 5th one being a triplet eighth-note minus a sixteenth-note.<br>
+<br>
+To have more than one beat cell repeated, we can use the square bracket group repeat: '<b>[x1, x2, x3...]n</b>' where the x's are cells to be repeated and n is the number of times to repeat. For example, if you want to have a beat that consists of this rhythm: '<b>1, .5, 1, 1, .5</b>' played 4 times, followed by this rhythm: '<b>.5, .5, 1</b>', you can write it like this: '<b>[1, .5, 1(2), .5]4, .5(2), 1</b>' (note the single cell repeats used in addition to the group repeat.). Like with the single cell repeat, the group repeat can modify the last cell of the last repeat using this syntax: <b>[x1, x2, x3...](n)+/-value</b>. Note that n is enclosed in parenthesis and is followed by the expression that modifies the final cell of the last repeat. For example, '<b>[1, 2, 3](2)+.75</b>' is equivalent to '<b>1, 2, 3, 1, 2, 3.75</b>'. You can have a multi-cell repeat nested inside another multi-cell repeat.<br>
+<br>
+<a name="pitch"></a>2. Setting the Pitch<br>
+You can set the pitch of a beat layer by altering the '<b>Pitch</b>' value. Enter a note name followed by the octave number, such as '<b>C4</b>,' which is middle C. 
+Accidentals are represented with '#' for sharp and 'b' for flat: '<b>Gb3</b>,' '<b>D#5</b>' etc. <br>Alternatively, you can enter the frequency in hertz of the desired pitch.<br>
+You can assign pitches to individual beat cells using the '@' modifier like this: <br>'<b>1, .5@A#5, 2/3@G4(3)</b>'. Cells without the '@' have whatever pitch is assign to the beat layer as a whole. If you assign a pitch to a cell that is repeated, each repetition will have that pitch.<br> 
+<i>Note: When you create a new beat layer, Pronome will automatically generate a pitch for it based on the other notes present.</i><br>
+<br>
+<a name="volume"></a>3. Setting the Volume of a Layer<br>
+Enter a value from 0 to 10 in the '<b>Volume</b>' input to change this layer's volume relative to the other layers.<br>
+<br>
+<a name="offset"></a>4. Offset Parameter<br>
+The '<b>Offset</b>' input is used to add a specified amount of rest before the layer starts.<br>
+For example:<br>
+Entering '<b>1</b>' into 'Offset' will cause the beat layer to start one quarter-note later.<br>
+Entering '<b>1+2/3</b>' will cause it to start one quarter-note plus 2 triplet eighth-notes later.<br>
+<i>Note: It is possible to enter a negative value for the offset, however this can result in audio glitching so it is not recommended.</i><br>
+<br>
+<a name="mute"></a>5. Muting, Soloing, and Deleting a Layer<br>
+On the left side of the beat layer interface are two letters. Clicking the 'M' will mute that beat layer and clicking the 'S' will cause that beat layer to be soloed. If you solo multiple layers, those layers will be audible but all others will not.<br>
+Clicking the 'X' on the right side will cause that beat layer to be deleted.<br>
+<br>
+<a name="master"></a>6. Master Controls<br>
+The bottom of the interface has the master controls:<br>
+Click '<b>Add Layer</b>' to create a new beat layer. You can have as many layers as your computer can handle.<br>
+'<b>Start</b>' plays all the beat layers together.<br>
+'<b>Stop</b>' Causes the beat to stop playing.<br>
+'<b>Tempo</b>' controls the playback tempo (in quarter-notes per minute). You can enter a number or you can tap the desired tempo by clicking on "<u>Tempo</u>" repeatedly.<br>
+'<b>Master Volume</b>' controls the overall volume of the playback. Enter a value from 0 to 10. Increasing this value too much can cause audio clipping in some browsers so its better to use your computer's volume control to increase the volume.<br>
+<i>Note: You cannot add a new beat layer while the beat is playing. Nor can you change the tempo if there is more than 1 beat layer playing.</i><br>
+<br>
+<a name="additional"></a>7. Additional Options<br>
+Clicking on '<b>[more]</b>' displays additional options:<br>
+You can save a beat into your browser's data using the '<b>Save</b>' interface. After clicking on save, you will be prompted to enter a descriptive name for your beat, then it will be added to the list of saved beats which will be accessible from your current device and browser. You can load a previously saved beat by selecting it in the drop-down menu then clicking the 'Load' button. By selecting a saved beat then clicking 'Delete', you can delete that beat from the list.<br>
+<i>Note: Clearing your browser's offline website data will delete all of your saved beats, so you may want to back them up using the exporter before doing so.</i><br>
+<br>
+The '<b>Import/Export</b>' field let's you export the current beat as a string of code by clicking on 'Export.' You can then copy/paste the exported code into a text file or share it with other users. To import a beat, paste the desired code into the box and click on 'Import.'<br>
+<i>Note: the imported beat will be added as new layers into whatever the current beat is. By deleting all beat layers before you import a beat, you will get the imported beat by itself. The 'Load' button behaves the same way.</i> <br>
+<br>
+'<b>Random Mute</b>' allows you to enter a number that is the percent chance that any given note will be randomly muted. The second field, which is optional, is the number of seconds that it will take for the random mute percentage value to increase steadily from 0% to whatever percentage you entered. This feature is useful for testing the accuracy of your rhythm. As the percentage increases, it becomes more difficult to stay with the beat.<br>
+<br>
+The '<b>Audible</b>' and '<b>Silent</b>' fields are another valuable tool for practicing rhythm. Similiar to the Beat and Offset inputs, you can enter a number or expression that evaluates to a length of time in quarter-notes at whatever tempo you have set. The value you enter in 'Audible' is the time afterwhich the beat will become inaudible. 'Silent' is the time afterwhich the beat will be audible again. For example, if you enter '<b>4*3</b>' in 'Audible' and '<b>4</b>' in 'Silent,' the beat will play for 3 measures of 4/4 time, then be silent for one measure, and then this pattern will repeat indefinitely.<br>
+<i>Note: The Audible/Silent feature is turned off if either of the two fields is blank.</i><br>
+<br>
+The '<b>Visualizer</b>' lets you visualize the beat in two different ways. 'Pulse' causes each layer to pulse along with its beat. The 'Graph' feature draws a radial graph representation of your beat. The layers are graphed as concentric circles with a tick mark for each note. While the beat is playing, an indicator moves like a clock hand to show the progression of time.<br>
+<br>
+You can toggle between the default sound and a much simpler 'beep' version by clicking on the '<b>Beep</b>' option. The simple beep version may sound better on some mobile devices.<br>
+<br>
+<a name="sample"></a><b>8. Beat Examples</b><br>
+Here is a collection of beats to give you a taste of what Pronome can do.<br>
+<a href="?%5B%7B%22beat%22:%224/3(2)4/3%22,%22pitch%22:%22440%22,%22gain%22:%226%22,%22offset%22:%224/3%22%7D,%7B%22beat%22:%221%22,%22pitch%22:%22C#5%22,%22gain%22:%226%22,%22offset%22:%220%22%7D,%7B%22beat%22:%224/5(4)4/5%22,%22pitch%22:%22E5%22,%22gain%22:%226%22,%22offset%22:%224/5%22%7D,%7B%22beat%22:%224/7(6)4/7%22,%22pitch%22:%22G#5%22,%22gain%22:%226%22,%22offset%22:%224/7%22%7D%5D">3:4:5:7 poly-rhythm</a><br>
+<a href="?%5B%7B%22beat%22:%222/3(3),1/3,2/3(2),1/3,2/3(2),1/3,2/3(3),1/3%22,%22pitch%22:%22G5%22,%22gain%22:%226%22,%22offset%22:%220%22%7D,%7B%22beat%22:%222%22,%22pitch%22:%22D5%22,%22gain%22:%226%22,%22offset%22:%222/3%22%7D,%7B%22beat%22:%223+2/3,1/3%22,%22pitch%22:%22C3%22,%22gain%22:%226%22,%22offset%22:%220%22%7D,%7B%22beat%22:%222%22,%22pitch%22:%22A4%22,%22gain%22:%226%22,%22offset%22:%221%22%7D,%7B%22beat%22:%224%22,%22pitch%22:%22F3%22,%22gain%22:%226%22,%22offset%22:%223+1/3%22%7D%5D">Afro-Cuban 6/8</a><br>
+<a href="?%5B%7B%22beat%22:%221,1,2/3,1,1,1/3,1,2/3,1,1/3%22,%22pitch%22:%22Bb5%22,%22gain%22:%226%22,%22offset%22:%220%22%7D,%7B%22beat%22:%224+2/3,3+1/3%22,%22pitch%22:%22D5%22,%22gain%22:%226%22,%22offset%22:%221%22%7D,%7B%22beat%22:%222%22,%22pitch%22:%22440%22,%22gain%22:%226%22,%22offset%22:%221%22%7D,%7B%22beat%22:%221+2/3,6+1/3%22,%22pitch%22:%22C3%22,%22gain%22:%228%22,%22offset%22:%220%22%7D,%7B%22beat%22:%228%22,%22pitch%22:%22F5%22,%22gain%22:%226%22,%22offset%22:%223+2/3%22%7D,%7B%22beat%22:%222/3,7+1/3%22,%22pitch%22:%22C5%22,%22gain%22:%226%22,%22offset%22:%227%22%7D%5D">Mambo with swung eighths</a><br>
+<a href="?%5B%7B%22beat%22:%22.25(6),1/6(3).25,.25(2).25,.75,.25(2).5,.25(2).25,1,.5(3)%22,%22pitch%22:%22G5%22,%22gain%22:%224%22,%22offset%22:%220%22%7D,%7B%22beat%22:%22.75,.5,2,.5(3).25,.75,.25+2%22,%22pitch%22:%22Bb4%22,%22gain%22:%226%22,%22offset%22:%222%22%7D,%7B%22beat%22:%22.75,.25,2.5,.75,.25,1.25,.25,.75,1.25%22,%22pitch%22:%22C#3%22,%22gain%22:%228%22,%22offset%22:%220%22%7D%5D">16th note Funk</a><br>
+<a href="?%5B%7B%22beat%22:%222@F#5,2@D5,2@B4,1+2/3@G4,4+1/3@Bb4,2@B4,2@A4,2@D5,2@Bb4,2@G4,1+2/3@Eb4,4+1/3@Gb4,2@G4,1+2/3@F4,4+1/3@Bb4,2@B4,1+2/3@A4,4+1/3@D5,2@Eb5,1+2/3@Db5,4+1/3@Gb5,2@G5,1+2/3@F5,4+1/3@Bb5,1+2/3@F#5,2+1/3@F#5%22,%22pitch%22:%22440%22,%22gain%22:%226%22,%22offset%22:%220%22%7D,%7B%22beat%22:%221@B2(2),1@D3(2),1@G3(2),1(2)@Bb3,1(4)@Eb3,1(2)@A3,1(2)@D3,1(2)@G3,1(2)@Bb3,1(2)@Eb3,1(2)@Gb3,1(4)@B2,1(2)@F3,1(2)@Bb3,1(4)@Eb3,1(2)@A3,1(2)@D3,1(4)@G3,1(2)@C#3,1(2)@F#3,1(4)@B3,1(2)@F3,1(2)@Bb3,1(4)@Eb3,1+2/3@C#3,2+1/3@F#3%22,%22pitch%22:%22C3%22,%22gain%22:%226%22,%22offset%22:%220%22%7D,%7B%22beat%22:%221,2/3,1/3%22,%22pitch%22:%22B6%22,%22gain%22:%222%22,%22offset%22:%220%22%7D%5D">Giant Steps</a><br>
+<a href="?%5B%7B%22beat%22:%22%5B1,2,1.5,2,1.5%5D(4)+32%20%22,%22pitch%22:%22440%22,%22gain%22:%226%22,%22offset%22:%221%22%7D,%7B%22beat%22:%22%5B2/3,4/3,1.5*2/3,4/3,1.5*2/3%5D(6)+32%22,%22pitch%22:%22C5%22,%22gain%22:%226%22,%22offset%22:%2232+2/3%22%7D,%7B%22beat%22:%22%5B1.5,2.5@A2%5D(8)+32%22,%22pitch%22:%22E2%22,%22gain%22:%226%22,%22offset%22:%221.5%22%7D,%7B%22beat%22:%22%5B2/3*1.5,2/3*2.5@C3%5D(12)+32%22,%22pitch%22:%22G2%22,%22gain%22:%226%22,%22offset%22:%2232+1.5*2/3%22%7D,%7B%22beat%22:%22%5B1(2),.5,1,.5,1,.5,1,1,.5%5D(4)+32%22,%22pitch%22:%22C6%22,%22gain%22:%226%22,%22offset%22:%220%22%7D,%7B%22beat%22:%22%5B1*2/3(2),.5*2/3,2/3,.5*2/3,2/3,.5*2/3,2/3(2).5*2/3%5D(6)+32%22,%22pitch%22:%22Eb6%22,%22gain%22:%226%22,%22offset%22:%2232%22%7D%5D">Salsa groove with a metric modulation</a><br>
+<a href="?%5B%7B%22beat%22:%221(16),2/3(24),%202/5(40),%204/7(28)%22,%22pitch%22:%22Bb4%22,%22gain%22:%226%22,%22offset%22:%220%22%7D,%7B%22beat%22:%222(8)-1+2/3*2/3,4/3(12)-2/3-2/3*2/3+2/5+2/5*.55,%204/5(20)-2/5-2/5*.55+4/7+2/3*4/7,%208/7(14)-4/7-2/3*4/7+1+2/3%22,%22pitch%22:%22E5%22,%22gain%22:%226%22,%22offset%22:%221+2/3%22%7D,%7B%22beat%22:%222(8)-1+2/3,4/3(12)-2/3+2/5,%204/5(20)-2/5+4/7,%208/7(14)-4/7+1%22,%22pitch%22:%22D4%22,%22gain%22:%226%22,%22offset%22:%221%22%7D,%7B%22beat%22:%221%22,%22pitch%22:%22C#3%22,%22gain%22:%226%22,%22offset%22:%220%22%7D%5D">Swing groove with a variety of metric modulations</a><br>
+
+
+<br>
+<b>Enjoy!</b><br>
+<br>
