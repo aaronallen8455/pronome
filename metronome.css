@@ -62,6 +62,9 @@ input {
 input:not([type=checkbox]) {
     opacity: .88;
 }
+.error {
+    border: solid 1px red;
+}
 button {
     cursor: pointer;
 }

@@ -11,7 +11,7 @@ window.onload = function() {
     var tempoInput = document.getElementById('tempo'); //tempo
     var mvol = document.getElementById('mvol');
     var started = false; //metronomes' state
-    var worker = new Worker('metWorker.js'); //this worker handles the setInterval tasks.
+    var worker = new Worker('metWorker.js'); //this worker handles the setInterval tasks (like scheduling notes).
     var mobile;
     if (screen.availWidth <= 850)
         mobile = true;
@@ -136,8 +136,13 @@ window.onload = function() {
     tempoInput.onchange = function() {
         if(started && (metronomes.length>1)) //can't change tempo during play if more than 1 nome.
             this.value = tempo;
-        else
-            tempo = this.value;
+        else {
+            if(this.value !== '') {
+                tempo = this.value;
+                this.style.borderWidth = 0;
+                this.classList.remove('error');
+            }else {this.classList.add('error'); this.style.borderWidth = '1px';}
+        }
     };
     
     var tapTempo = (function() {
@@ -164,9 +169,12 @@ window.onload = function() {
     else $('#tapTempoEle').click(tapTempo);
     
     mvol.onchange = function() {
-        gain.gain.value = this.value/10;
         if (this.value < 0) this.value = 0;
         if (this.value > 10) this.value = 10;
+        if(Metronome.validate(this.value,'volume')) {
+            gain.gain.value = this.value/10;
+            this.classList.remove('error');
+        }else this.classList.add('error');
     }
     
     function getCycles() { //returns array of minimum number of cycles for each layer to form a complete repeat of beat.
@@ -505,12 +513,18 @@ window.onload = function() {
         if(this.value < 0) this.value = 0; //this input is the random mute percentage.
         if(this.value > 100) this.value = 100;
         if(this.value === '') randMute = 0;
-        randMute = this.value/100;
+        if(Metronome.validate(this.value,'volume')) {
+            randMute = this.value/100;
+            this.classList.remove('error');
+        }else this.classList.add('error');
     });
     
     var randomMuteTime = $('<input>').attr('type', 'text').attr('id', 'randomMuteTime').attr('value', '0').change(function() {
         if(this.value < 0) this.value = 0; //the # of seconds it takes to get up to full muting level.
-        randMuteTime = this.value;
+        if(Metronome.validate(this.value,'volume')) {
+            randMuteTime = this.value;
+            this.classList.remove('error');
+        }else this.classList.add('error');
     });
     
     $('<div>').appendTo(options).append('Random Mute: ').append(randomMute).append('% ').append(randomMuteTime).append('sec');
@@ -520,9 +534,15 @@ window.onload = function() {
     
     var setMute1 = $('<input>').attr('type', 'text').addClass('setMute').change( function() {
         if(parseBeat(this.value)[0] == 0 && parseBeat(setMute2.val())[0] == 0) this.value = '';
+        if(Metronome.validate(this.value,'offset'))
+            this.classList.remove('error');
+        else this.classList.add('error');
     });
     var setMute2 = $('<input>').attr('type', 'text').addClass('setMute').change( function() {
         if(parseBeat(this.value)[0] == 0 && parseBeat(setMute1.val())[0] == 0) this.value = '';
+        if(Metronome.validate(this.value,'offset'))
+            this.classList.remove('error');
+        else this.classList.add('error');
     });
     
     $('<div>').css({paddingLeft: '20px'}).appendTo(options).append('Audible: ').append(setMute1).append('<br>').append('Silent: ').append(setMute2);
@@ -801,7 +821,11 @@ window.onload = function() {
         }}).appendTo(document.body);
         
         this.beatInput = $('<input>').css('width', '137px').css('fontFamily', 'monospace').css('fontSize','1em').attr('type', 'text').change(function() { //the beat input
-            _this.beat = parseBeat(this.value);
+            if(Metronome.validate(this.value)) {//validate input.
+                this.classList.remove('error');
+                _this.beat = parseBeat(this.value);
+            }
+            else this.classList.add('error');
             //_this.beat.forEach(function(x,i,a) { a[i] = Math.abs(a[i]) }); //negative beat values throw an error
             $(_this.beatInput).trigger('input');
         }).on('input', function() {
@@ -813,6 +837,9 @@ window.onload = function() {
         
         this.pitchInput = $('<input>').attr('type', 'text').css( //the beep frequency
             'width', '45px').attr('value', initFreq).change(function() {
+            if(Metronome.validate(this.value,'pitch'))
+                this.classList.remove('error');
+            else this.classList.add('error');
             _this.frequency = Metronome.getFreq(this.value) || 440; //get freq from note name.
             _this.cutoff = (1/_this.frequency)*20; //calculate the cutoff time.
             if(simpleBeep) _this.lowPass.frequency.value = _this.frequency;
@@ -822,8 +849,11 @@ window.onload = function() {
         
         this.gainInput = $('<input>').attr('type', 'text').css( //volume
             'width', '21px').attr('value', Math.floor(_this.gain.gain.value*10)).change(function() {
-            _this.gain.gain.value = this.value/10;
-            //_this.lowPass.frequency.value = this.value;
+            if(Metronome.validate(this.value,'volume')) {
+                _this.gain.gain.value = this.value/10;
+                this.classList.remove('error');
+            }
+            else this.classList.add('error');
             if(parseFloat(this.value) < 0) this.value = '0';
             if(parseFloat(this.value) > 10) this.value = '10';
         });
@@ -831,7 +861,10 @@ window.onload = function() {
         
         this.offsetInput = $('<input>').attr('type', 'text').css( //offset
             'width', '40px').attr('value', _this.offSet).change(function() {
-            _this.offSet = parseBeat(this.value);
+            if(Metronome.validate(this.value,'offset')) {
+                _this.offSet = parseBeat(this.value);
+                this.classList.remove('error');
+            }else this.classList.add('error');
             //_this.lowPass.Q.value = this.value;
             if (this.value === '') _this.offSet = 0;
         });
@@ -937,6 +970,61 @@ window.onload = function() {
         if (mets.style.marginTop.slice(0,-2) > 0) { //don't let the top go outside of the document.
             mets.style.marginTop = ($(window).innerHeight()/2 - mets.offsetHeight/2) + 'px'; //reposition the mets div after adding a new metronome.
         }
+    }
+    
+    Metronome.validate = function(str,type) { //check various inputs for syntax errors.
+        var message = '';
+        var errors = [];
+        var beat = [
+            [/\)[^,\]]*\(|\)[^,]*[a-z]+[^,]*/, 'Invalid final repeat modifier.'],
+            [/\(\d*\D+\d*\)|\(\)/, 'The number of repeats must be an integer.'],
+            [/\][^\d(]|\]$/, 'Missing \'n\' value for multi-cell repeat.'],
+            [/,$|,\s*,|^,/, 'Empty beat cell.'],
+            [/^\[?\D+,|,\[?\D+,|,[^,\d]+$|\d[a-wyzA-WYZ]|[+\-*xX/][^\d.]|[^\d).]$|\D\.\D|\D\.$/, 'Invalid beat cell value.'],
+            [/@[^a-gA-G\d]|@[a-gA-G]?[b#]?$|@[a-gA-G][^#b\d]/, 'Invalid pitch assignment using \'@\'.']
+        ];
+        var pitch = [
+            [/^\D+$/],
+            [/[^a-gA-G\d]/],
+            [/\d[a-z]/i],
+            [/^[^a-gA-G\d]/],
+            [/^[a-gA-G][^#b\d]/],
+            [/^$/]
+            ];
+        var volume = [
+            [/[^\d.]/]
+            ];
+        var offset = [
+            [/[^\d+-/*xX]/],
+            [/^[^\d\-.]/],
+            [/\D$/]
+            ];
+        switch(type) {
+            case 'beat':
+                errors = beat;
+                break;
+            case 'pitch':
+                errors = pitch;
+                break;
+            case 'volume':
+                errors = volume;
+                break;
+            case 'offset':
+                errors = offset;
+                break;
+            default:
+                errors = beat;
+        }
+        
+        if(errors.some(function(x){return str.search(x[0]) > -1;})) {
+            errors.forEach(function(x){
+                if(str.search(x[0]) > -1)
+                    if(x[1]) message += '- ' + x[1] + '\n';
+            });
+            if(message) alert('The following syntax errors were found:\n' + message);
+            return false;
+        }
+        return true;
     }
     
     Metronome.getFreq = function(pitch) { //utility for converting notes to frequency in hertz
