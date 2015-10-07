@@ -305,6 +305,12 @@ window.onload = function() {
         if(started) graphNeedle(width/2);
         for(var i=0; i<metronomes.length; i++) {
             var radius = width/7 + (metronomes.length-i)*(3/10*width/metronomes.length);
+            var tickTop;
+            if(i===0) tickTop = 11;
+            else tickTop = 3/20*width/metronomes.length;
+            var tickBot;
+            if(i===metronomes.length-1) tickBot = 11;
+            else tickBot = 3/20*width/metronomes.length;
             var beatCycle = [];
             c.save(); //save untransformed state.
             c.translate(width/2,width/2);
@@ -322,12 +328,12 @@ window.onload = function() {
             }); 
             
             for(var p=0; p<beatCycle.length;p++) {
-                c.lineTo(0,radius-7); //the tick mark
-                c.lineTo(0,radius+7);
+                c.lineTo(0,radius-tickBot+1); //the tick mark
+                c.lineTo(0,radius+tickTop-1);
                 c.arc(0,0,radius,.5*Math.PI,beatCycle[p]+.5*Math.PI); //the circle.
                 c.rotate(beatCycle[p]);
             }
-            c.strokeStyle = 'hsl('+ ((metronomes.length-i)*180/metronomes.length) + ',40%,35%)' //give each layer a color.
+            c.strokeStyle = 'hsl('+ ((metronomes.length-i)*200/metronomes.length) + ',55%,35%)' //give each layer a color.
             c.lineWidth = 1.5;
             if(mobile) c.lineWidth = 2;
             c.stroke();
