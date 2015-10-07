@@ -1,5 +1,5 @@
 <b>Pronome Instructions</b><br>
-<br>Pronome is a tool for musicians that lets you create multiple beat layers, each containing it's own looping rhythmic pattern.<br>
+<br>Pronome is a tool for musicians that lets you create multiple layers of looping rhythmic patterns.<br>
 <br>
 Topics:
 <ol type="1">
@@ -42,7 +42,7 @@ Topics:
 
 <br>
 <a name="beat"></a>1. Creating a Beat<br>
-To create the rhythm of a beat layer, enter one or more values seperated by commas into the '<b>Beat</b>' input. These values are the 'beat cells.' Pronome uses a numeric rhythmic notation in which '1' represents a quarter-note time value. Using some basic math, you can determine the numeric value of any rhythmic unit based upon it's relationship to the quarter-note pulse.<br>
+A 'beat' or 'groove' refers to a group of distinct rhythmic patterns called 'beat layers.' To create the rhythm of a beat layer, enter one or more values seperated by commas into that layer's '<b>Beat</b>' input. These values are called the 'beat cells.' Pronome uses a numeric rhythmic notation in which '1' represents a quarter-note time value. Using some basic math, you can determine the numeric value of any rhythmic unit based upon it's relationship to the quarter-note pulse.<br>
 For example:<br>
 If you enter '<b>1</b>,' you will get a loop containing a single quarter-note.<br>
 '<b>2, .5, 1</b>' will give you a half-note followed by an eighth-note then a quarter-note. A half-note is two quarter-notes, therefore if a quarter note is 1 then a half-note equals 2. An eighth-note is one half of a quarter-note, so by dividing 1 by 2 we get '.5'. The spaces after the commas are optional.<br>

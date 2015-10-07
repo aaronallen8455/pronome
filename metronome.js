@@ -985,20 +985,20 @@ window.onload = function() {
         ];
         var pitch = [
             [/^\D+$/],
-            [/[^a-gA-G\d]/],
+            [/[^a-gA-G\d#]/],
             [/\d[a-z]/i],
             [/^[^a-gA-G\d]/],
             [/^[a-gA-G][^#b\d]/],
             [/^$/]
-            ];
+        ];
         var volume = [
             [/[^\d.]/]
-            ];
+        ];
         var offset = [
             [/[^\d+-/*xX]/],
             [/^[^\d\-.]/],
             [/\D$/]
-            ];
+        ];
         switch(type) {
             case 'beat':
                 errors = beat;
