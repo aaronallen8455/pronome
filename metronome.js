@@ -982,11 +982,11 @@ window.onload = function() {
         var message = '';
         var errors = [];
         var beat = [
-            [/\)[^,\]]*\(|\)[^,]*[a-z]+[^,]*/, 'Invalid final repeat modifier.'],
-            [/\(\d*\D+\d*\)|\(\)/, 'The number of repeats must be an integer.'],
+            [/\)[^,\]@]*\(|\)[^,@]*[a-z]+[^,]*/, 'Invalid final repeat modifier.'],
+            [/\(\d*[^\d)]+\d*\)|\(\)/, 'The number of repeats must be an integer.'],
             [/\][^\d(]|\]$/, 'Missing \'n\' value for multi-cell repeat.'],
-            [/,$|,\s*,|^,/, 'Empty beat cell.'],
-            [/^\[?\D+,|,\[?\D+,|,[^,\d]+$|\d[a-wyzA-WYZ]|[+\-*xX/][^\d.]|[^\d).]$|\D\.\D|\D\.$/, 'Invalid beat cell value.'],
+            [/,$|,\s*,|^,|^$/, 'Empty beat cell.'],
+            [/^\[?\D+,|,\[?\D+,|,[^,\d\s]+$|\d[a-wyzA-WYZ]|[+\-*xX/][^\d.]|[^\d).\s]$|\D\.\D|\D\.$|\.\d+\./, 'Invalid beat cell value.'],
             [/@[^a-gA-G\d]|@[a-gA-G]?[b#]?$|@[a-gA-G][^#b\d]/, 'Invalid pitch assignment using \'@\'.']
         ];
         var pitch = [
@@ -1160,6 +1160,7 @@ window.onload = function() {
             nome.offsetInput.val(orig.offset).triggerHandler('change');
         }
         setPan();
+        $(window).trigger('resize');
     }else
         metronomes.push(new Metronome); //otherwise, add a default metronome.
 }
