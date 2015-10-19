@@ -74,6 +74,7 @@ window.onload = function() {
         if(context.state === 'suspended') context.resume();
         if(chrInter) clearInterval(chrInter);
         started = true;
+        time = context.currentTime+.1; //used as the metronomes' start time and to set the needle on the graph
         for (var i in metronomes)
             metronomes[i].start();
         worker.postMessage({'s':'start', 't':25});
@@ -85,8 +86,7 @@ window.onload = function() {
             muteStart = context.currentTime + .09 + setMuteTime1; //offset by .09 b/c the beat is offset by .1 and we need a little room for error.
             muteEnd = context.currentTime + .09 + setMuteTime1 + setMuteTime2;
         }
-        time = context.currentTime+.1; //used to set the needle on the graph
-        if(visGraph) drawGraph();
+        if(visGraph) drawGraph(); //graph it
     }
     
     worker.onmessage = function() { //whenever the worker ticks
@@ -428,6 +428,7 @@ window.onload = function() {
             
             function getBeatName() { //ask for a name for the beat
                 var name = prompt('Enter a name for this beat.');
+                if(!name || name === 'none') return;
                 if (localStorage.getItem(name) && name !== 'none') { 
                     if(confirm('That name is already used. Do you want to replace the old beat with this one?')) {
                         localStorage.setItem(name, beat);
@@ -445,7 +446,7 @@ window.onload = function() {
         $('<button>', {text: 'Load'}).css('display', 'inline-block').click( function() { //load button
             if (savedBeats.val() !== 'none' && !started) {
                 var beat = localStorage.getItem(savedBeats.val());
-                beat = JSON.parse(beat);
+                beat = $.parseJSON(beat);
                 for (var i in beat) {
                     var orig = beat[i]
                     var nome = new Metronome()
@@ -495,7 +496,7 @@ window.onload = function() {
             if(!started) {
                 var beat = inOut.val();
                 beat = beat.replace(/\n/, '');
-                beat = JSON.parse(beat);
+                beat = $.parseJSON(beat);
                 for (var i in beat) {
                     var orig = beat[i]
                     var nome = new Metronome()
@@ -1069,7 +1070,7 @@ window.onload = function() {
     
     Metronome.prototype.start = function() {
         var _this = this;
-        this.startTime = context.currentTime + .1;
+        this.startTime = time;
         this.n = 0;
         this.schd();
         if(visPulse)this.visualizer();
@@ -1127,9 +1128,9 @@ window.onload = function() {
                         gainDecay.gain.value = 1;
                         gainDecay.connect(_lowPass || this.lowPass);
                         gainDecay.gain.setTargetAtTime(0, this.startTime+this.offSet*60/tempo+.13, .045); //.04 also sounds pretty good.
+                        this.osc.connect(gainDecay);
                         this.osc.start(this.startTime + (this.offSet*60/tempo)+.07);
                         this.osc.stop(this.startTime + (this.offSet*60/tempo)+.37);
-                        this.osc.connect(gainDecay);
                         delete gainDecay;
                         delete this.osc;
                     }else{ //plain tone.
@@ -1149,7 +1150,7 @@ window.onload = function() {
     }
     if(location.search) { //if theres a query, we extract the beat from it
         var beat = decodeURI(location.href.slice(location.href.indexOf('?')+1));
-        beat = JSON.parse(beat);
+        beat = $.parseJSON(beat);
         for (var i in beat) {
             var orig = beat[i]
             var nome = new Metronome()
