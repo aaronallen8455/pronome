@@ -851,7 +851,7 @@ window.onload = function() {
             _this.cutoff = (1/_this.frequency)*20; //calculate the cutoff time.
             if(simpleBeep) _this.lowPass.frequency.value = _this.frequency;
             else _this.lowPass.frequency.value = _this.frequency*4;
-        }); 
+        });
         $('<span>').append('Pitch:').append(_this.pitchInput).appendTo(_this.div);
         
         this.gainInput = $('<input>').attr('type', 'text').css( //volume
