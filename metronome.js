@@ -129,7 +129,7 @@ window.onload = function() {
             },30000);
         InstrSamp.played.forEach(function(x,i,a){ //stop any sound samples that may still be ringing such as cymbals.
             if(x instanceof AudioBufferSourceNode)
-                x.stop();
+                setTimeout(function(){x.stop();}, 130);
             a[i] = null;
         });
     }
@@ -141,7 +141,7 @@ window.onload = function() {
         }
     }, false);
     
-    
+    context.decodeAudioData = context.decodeAudioData || context.webkitdecodeAudioData;
     function InstrSamp() { //A class for loading and manipulating sound samples.
         var _this = this;
         this.buffers = []; //holds all the buffers.
@@ -876,8 +876,8 @@ window.onload = function() {
         $('<span>').append('Beat:').append(_this.beatInput).appendTo(_this.div);
         
         this.pitchInput = $('<input>').attr('type', 'text').css( //the beep frequency
-            'width', '45px').attr('value', initFreq).change(function() {
-            if(Metronome.validate(this.value, _this.instr?'detune':'pitch'))
+            'width', '25px').attr('value', initFreq).change(function() {
+            if(Metronome.validate(this.value, _this.instr[0]?'detune':'pitch'))
                 this.classList.remove('error');
             else this.classList.add('error');
             _this.frequency = Metronome.getFreq(this.value) || 440; //get freq from note name.
@@ -885,9 +885,10 @@ window.onload = function() {
             if(simpleBeep) _this.lowPass.frequency.value = _this.frequency;
             else _this.lowPass.frequency.value = _this.frequency*4;
         });
+        
         this.instr = [false, 'pitch', 'A4', '0']; //whether or not an instrument sample is being used.
         this.instrInput = $('<select>').val('pitch').append(
-            $('<option>').html('Pitch:').attr('value', 'pitch')
+            $('<option>').html('Pitch').attr('value', 'pitch')
         ).change(function() {
             _this.instr[1] = this.value; 
             if (this.value != 'pitch') {
@@ -911,7 +912,7 @@ window.onload = function() {
             );
         });
         
-        $('<span>').append(_this.instrInput).append(_this.pitchInput).appendTo(_this.div);
+        $('<span>').append('Src:').append(_this.instrInput).append(_this.pitchInput).appendTo(_this.div);
         
         this.gainInput = $('<input>').attr('type', 'text').css( //volume
             'width', '21px').attr('value', Math.floor(_this.gain.gain.value*10)).change(function() {
