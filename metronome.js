@@ -75,10 +75,13 @@ window.onload = function() {
         if(chrInter) clearInterval(chrInter);
         started = true;
         time = context.currentTime+.1; //used as the metronomes' start time and to set the needle on the graph
+        if (randomMuteTime.val() > 0) { //the random mute incrementer.
+            randMuteStart();
+            randMute = 0;
+        }
         for (var i in metronomes)
             metronomes[i].start();
         worker.postMessage({'s':'start', 't':25});
-        if (randomMuteTime.val() > 0) randMuteStart();
         if (setMute1.val() && setMute2.val()) { //initiates the Set Mute feature if its being used.
             setMuteTime1 = (parseBeat(setMute1.val())[0]*60/tempo);
             setMuteTime2 = (parseBeat(setMute2.val())[0]*60/tempo);
@@ -124,6 +127,11 @@ window.onload = function() {
                         context.suspend();
                 },20);
             },30000);
+        InstrSamp.played.forEach(function(x,i,a){ //stop any sound samples that may still be ringing such as cymbals.
+            if(x instanceof AudioBufferSourceNode)
+                x.stop();
+            a[i] = null;
+        });
     }
     
     document.addEventListener('keydown', function(e) { //give space bar start/stop action.
@@ -132,6 +140,70 @@ window.onload = function() {
             else start();
         }
     }, false);
+    
+    
+    function InstrSamp() { //A class for loading and manipulating sound samples.
+        var _this = this;
+        this.buffers = []; //holds all the buffers.
+        this.counter = 0;
+        InstrSamp.array.forEach(function(x,i,a) { //create a buffer node for each sound file.
+            var path = './drums/' + x.toLowerCase() + '.ogg';
+            var request = new XMLHttpRequest();
+            request.open('GET', path);
+            request.responseType = 'arraybuffer';
+            request.onload = function() {
+                context.decodeAudioData(request.response, function(buffer) {
+                    _this.buffers[i] = buffer;
+                    _this.counter++;
+                    if(_this.counter == a.length) {
+                        console.log('complete');
+                    }
+                    
+                });
+                
+            }
+            request.send();
+        });
+    }
+    InstrSamp.array = [ //sound files to be buffered
+        'Kick',
+        'Ride',
+        'Snare',
+        'Snare_Center_V6',
+        'Snare_Center_V11',
+        'Snare_Center_V16',
+        'Snare_Edge_V6',
+        'Snare_Edge_V11',
+        'Snare_Edge_V16',
+        'Snare_Rim_V6',
+        'Snare_Rim_V11',
+        'Snare_Rim_V16',
+        'Snare_XStick_V6',
+        'Snare_XStick_V11',
+        'Snare_XStick_V16',
+        'Ride_Bell_V5',
+        'Ride_Bell_V8',
+        'Ride_Bell_V10',
+        'Ride_Center_V5',
+        'Ride_Center_V8',
+        'Ride_Center_V10',
+        'Ride_Edge_V4',
+        'Ride_Edge_V7',
+        'Ride_Edge_V10',
+        'Kick_V7',
+        'Kick_V11',
+        'Kick_V16',
+        'FloorTom_V6',
+        'FloorTom_V11',
+        'FloorTom_V16',
+        'RackTom_V6',
+        'RackTom_V11',
+        'RackTom_V16'
+    ];
+    InstrSamp.played = new Array(40); //holds most recent buffersources for easy stopping.
+    
+    var samples = new InstrSamp(); //instantiate
+    
     
     tempoInput.onchange = function() {
         if(started && (metronomes.length>1)) //can't change tempo during play if more than 1 nome.
@@ -413,19 +485,8 @@ window.onload = function() {
     $('<div>', {css: {display: 'inline-block', textAlign: 'left'}}).appendTo(options).append(savedBeats).append('<br />').append(
         $('<button>', {text: 'Save'}).css('display', 'inline-block').click( function() { //the save button
             
-            var result = [];
-            for (var i = 0; i<metronomes.length; i++) {
-                var obj = {};
-                if(metronomes[i].beatInput.val() != '')
-                    obj['beat'] = metronomes[i].beatInput.val();
-                else obj['beat'] = 1;
-                obj['pitch'] = metronomes[i].pitchInput.val();
-                obj['gain'] = metronomes[i].gainInput.val();
-                obj['offset'] = metronomes[i].offsetInput.val();
-                result.push(obj);
-            }
-            var beat = JSON.stringify(result); //get text representation of the beat.
-            
+            var beat = Metronome.stringifyBeat(metronomes); //get text representation of the beat.
+            if(!beat) return false;
             function getBeatName() { //ask for a name for the beat
                 var name = prompt('Enter a name for this beat.');
                 if(!name || name === 'none') return;
@@ -446,17 +507,7 @@ window.onload = function() {
         $('<button>', {text: 'Load'}).css('display', 'inline-block').click( function() { //load button
             if (savedBeats.val() !== 'none' && !started) {
                 var beat = localStorage.getItem(savedBeats.val());
-                beat = $.parseJSON(beat);
-                for (var i in beat) {
-                    var orig = beat[i]
-                    var nome = new Metronome()
-                    metronomes.push(nome);
-                    nome.beatInput.val(orig.beat).triggerHandler('change');
-                    nome.pitchInput.val(orig.pitch).triggerHandler('change');
-                    nome.gainInput.val(orig.gain).triggerHandler('change');
-                    nome.offsetInput.val(orig.offset).triggerHandler('change');
-                }
-                setPan();
+                Metronome.reviveBeat(beat);
             }
         })
     ).append(
@@ -477,18 +528,9 @@ window.onload = function() {
     
     $('<div>', {css: {display: 'inline-block', float: 'right'}}).appendTo(inOutDiv).append( //a div that wraps all the buttons
         $('<button>', {text: 'Export'}).click( function() { //the exporter button
-            var result = [];
-            for (var i = 0; i<metronomes.length; i++) {
-                var obj = {};
-                if(metronomes[i].beatInput.val() != '')
-                    obj['beat'] = metronomes[i].beatInput.val();
-                else obj['beat'] = 1;
-                obj['pitch'] = metronomes[i].pitchInput.val();
-                obj['gain'] = metronomes[i].gainInput.val();
-                obj['offset'] = metronomes[i].offsetInput.val();
-                result.push(obj);
-            }
-            inOut.val(JSON.stringify(result)); //export a text representation of each beat layer.
+            var beat = Metronome.stringifyBeat(metronomes);
+            if(beat)
+                inOut.val(beat); //export a text representation of each beat layer.
         })
     ).append(
     
@@ -496,17 +538,7 @@ window.onload = function() {
             if(!started) {
                 var beat = inOut.val();
                 beat = beat.replace(/\n/, '');
-                beat = $.parseJSON(beat);
-                for (var i in beat) {
-                    var orig = beat[i]
-                    var nome = new Metronome()
-                    metronomes.push(nome);
-                    nome.beatInput.val(orig.beat).triggerHandler('change');
-                    nome.pitchInput.val(orig.pitch).triggerHandler('change');
-                    nome.gainInput.val(orig.gain).triggerHandler('change');
-                    nome.offsetInput.val(orig.offset).triggerHandler('change');
-                }
-                setPan();
+                Metronome.reviveBeat(beat);
             }
         })
     ).append(
@@ -637,6 +669,7 @@ window.onload = function() {
         var add = /[+-]/g;
         var mult = /[\/\*]/g;
         var parsedBeat = [];
+        str = str.replace(/[*].*?[*]/g, ''); //escape comments.
         str = str.replace(/\[\s*\[/g, '[0,['); //need to insert 0's between closley nested reps
         str = str.replace(/\]([^,]+)\]/g, ']$1,0]'); //same as above but for the closing bracket.
         str = str.replace(/x/gi, '*'); //option to use 'x' for multiplication.
@@ -844,7 +877,7 @@ window.onload = function() {
         
         this.pitchInput = $('<input>').attr('type', 'text').css( //the beep frequency
             'width', '45px').attr('value', initFreq).change(function() {
-            if(Metronome.validate(this.value,'pitch'))
+            if(Metronome.validate(this.value, _this.instr?'detune':'pitch'))
                 this.classList.remove('error');
             else this.classList.add('error');
             _this.frequency = Metronome.getFreq(this.value) || 440; //get freq from note name.
@@ -852,7 +885,33 @@ window.onload = function() {
             if(simpleBeep) _this.lowPass.frequency.value = _this.frequency;
             else _this.lowPass.frequency.value = _this.frequency*4;
         });
-        $('<span>').append('Pitch:').append(_this.pitchInput).appendTo(_this.div);
+        this.instr = [false, 'pitch', 'A4', '0']; //whether or not an instrument sample is being used.
+        this.instrInput = $('<select>').val('pitch').append(
+            $('<option>').html('Pitch:').attr('value', 'pitch')
+        ).change(function() {
+            _this.instr[1] = this.value; 
+            if (this.value != 'pitch') {
+                _this.instr[0] = true;
+                _this.instr[2] = _this.pitchInput.val();
+                _this.pitchInput.val(_this.instr[3]);
+                _this.pitchInput.trigger('change');
+            }
+            else {
+                _this.instr[0] = false;
+                _this.instr[3] = _this.pitchInput.val();
+                _this.pitchInput.val(_this.instr[2]);
+                _this.pitchInput.trigger('change');
+            }
+        });
+        InstrSamp.array.forEach(function(x,i,a) {
+            var s = '&nbsp;';
+            if (i<9) s = '&nbsp;&nbsp;';
+            $(_this.instrInput).append(
+                $('<option>').html(i+1+'.'+s+x).attr('value', i)
+            );
+        });
+        
+        $('<span>').append(_this.instrInput).append(_this.pitchInput).appendTo(_this.div);
         
         this.gainInput = $('<input>').attr('type', 'text').css( //volume
             'width', '21px').attr('value', Math.floor(_this.gain.gain.value*10)).change(function() {
@@ -980,6 +1039,7 @@ window.onload = function() {
     }
     
     Metronome.validate = function(str,type) { //check various inputs for syntax errors.
+        str = str.replace(/[*].*?[*]/g, ''); //escape comments.
         var message = '';
         var errors = [];
         var beat = [
@@ -1002,10 +1062,15 @@ window.onload = function() {
             [/[^\d.]/]
         ];
         var offset = [
-            [/[^\d+-/*xX]/],
+            [/[^\d+\-/*xX.]/],
             [/^[^\d\-.]/],
             [/\D$/]
         ];
+        var detune = [
+            [/[^\d.\-+]/],
+            [/.*\..*\./],
+            [/^[^+\-\d.]/]
+        ]
         switch(type) {
             case 'beat':
                 errors = beat;
@@ -1018,6 +1083,9 @@ window.onload = function() {
                 break;
             case 'offset':
                 errors = offset;
+                break;
+            case 'detune':
+                errors = detune
                 break;
             default:
                 errors = beat;
@@ -1068,6 +1136,44 @@ window.onload = function() {
         return a+d;
     }
     
+    Metronome.stringifyBeat = function(metronomes) { //returns a beat as JSON string for saving/exporting.
+        var result = [];
+        for (var i = 0; i<metronomes.length; i++) {
+            var obj = {};
+            if(Metronome.validate(metronomes[i].beatInput.val(), 'beat') &&
+               Metronome.validate(metronomes[i].pitchInput.val(), metronomes[i].instr[0]?'detune':'pitch') &&
+               Metronome.validate(metronomes[i].gainInput.val(), 'volume') &&
+               Metronome.validate(metronomes[i].offsetInput.val(), 'offset')) {
+                obj['beat'] = metronomes[i].beatInput.val();
+                obj['instr'] = metronomes[i].instrInput.val();
+                obj['pitch'] = metronomes[i].pitchInput.val();
+                obj['gain'] = metronomes[i].gainInput.val();
+                obj['offset'] = metronomes[i].offsetInput.val();
+                result.push(obj);
+            }else{
+                alert('This beat contains errors and could not be saved/exported.');
+                return false;
+            }
+        }
+        return JSON.stringify(result);
+    }
+    
+    Metronome.reviveBeat = function(beat) { //import a beat from a JSON encoded beat.
+        beat = $.parseJSON(beat);
+        for (var i in beat) {
+            var orig = beat[i]
+            var nome = new Metronome()
+            metronomes.push(nome);
+            nome.beatInput.val(orig.beat).triggerHandler('change');
+            nome.instrInput.val(orig.instr).triggerHandler('change');
+            nome.pitchInput.val(orig.pitch).triggerHandler('change');
+            nome.gainInput.val(orig.gain).triggerHandler('change');
+            nome.offsetInput.val(orig.offset).triggerHandler('change');
+        }
+        setPan();
+        $(window).trigger('resize');
+    }
+    
     Metronome.prototype.start = function() {
         var _this = this;
         this.startTime = time;
@@ -1085,9 +1191,9 @@ window.onload = function() {
         var _this = this; //put 'this' in the closure.
         function vis() {
             _this.analyser.getByteFrequencyData(_this.dataArray); //used to create the blinking.
-            var perc = _this.dataArray[0]-230; //-230 to make the blink shorter.
+            var perc = _this.dataArray[0]-(_this.instr?150:230); //-230 to make the blink shorter. drum sounds use 150
             if(perc<0) perc = 0;
-            div.style.background = 'linear-gradient(to right, #BECCD6 0%,#acbece '+ (perc/25*40) +'%,#acbece '+ (100-perc/25*40) +'%,#BECCD6 100%)'; //#B3C8D8
+            div.style.background = 'linear-gradient(to right, #BECCD6 0%,#acbece '+ (perc/(_this.instr?105:25)*40) +'%,#acbece '+ (100-perc/(_this.instr?105:25)*40) +'%,#BECCD6 100%)'; //#B3C8D8
             if((perc === 0 && !started) || (perc === 0 && !visPulse)) return;
             requestAnimationFrame(vis);
         }
@@ -1096,51 +1202,72 @@ window.onload = function() {
     
     Metronome.prototype.schd = function(e) { //schedules the notes ahead of time. this function is called every 25 ms while playing.
         this.time = context.currentTime;
-        while (this.startTime - this.time < lookAhead - this.offSet*60/tempo) {
+        var offset = this.offSet*60/tempo;
+        while (this.startTime - this.time < lookAhead - offset) {
             if (this.n >= this.beat.length) this.n = 0; //loop the beat.
             if (Array.isArray(this.beat[this.n])) { //check if its pitch modified
-                var freq = parseFloat(this.beat[this.n][1]).toFixed(2);
-                var beat = this.beat[this.n][0];
-                var _lowPass = context.createBiquadFilter() || context.webkitcreateBiquadFilter(); //we need a special LP for the diff pitch.
-                _lowPass.type = 'lowpass'
-                _lowPass.Q.value = 1;
-                _lowPass.connect(this.analyser);
-                if(simpleBeep) {
-                    var _cutoff = (1/freq)*20;
-                    _lowPass.frequency.value = freq;
-                    var _gainDecay = context.createGain(); //this fixes a bug in chrome.
-                    _gainDecay.gain.value = 1;
-                    _gainDecay.connect(_lowPass);
-                    _gainDecay.gain.setTargetAtTime(0, this.startTime + (this.offSet*60/tempo) + _cutoff+.07, 0||0.0009); //cuts off a pop. 0 throws error in firefox
-                }else _lowPass.frequency.value = freq*4;
+                if(!this.instr) {
+                    var freq = parseFloat(this.beat[this.n][1]).toFixed(2);
+                    var beat = this.beat[this.n][0];
+                    var _lowPass = context.createBiquadFilter() || context.webkitcreateBiquadFilter(); //we need a special LP for the diff pitch.
+                    _lowPass.type = 'lowpass'
+                    _lowPass.Q.value = 1;
+                    _lowPass.connect(this.analyser);
+                    if(simpleBeep) {
+                        var _cutoff = (1/freq)*20;
+                        _lowPass.frequency.value = freq;
+                        var _gainDecay = context.createGain(); //this fixes a bug in chrome.
+                        _gainDecay.gain.value = 1;
+                        _gainDecay.connect(_lowPass);
+                        _gainDecay.gain.setTargetAtTime(0, this.startTime + offset + _cutoff+.07, 0||0.0009); //cuts off a pop. 0 throws error in firefox
+                    }else _lowPass.frequency.value = freq*4;
+                }else{ //if its an instrument with @ modifier.
+                    var instr = parseInt(this.beat[this.n][1])-1;
+                    var beat = this.beat[this.n][0];
+                }
             }
-            if (setMuteOn && this.startTime+(this.offSet*60/tempo) >= muteEnd) {
+            if (setMuteOn && this.startTime+offset >= muteEnd) {
                 muteStart = muteEnd + setMuteTime1;
                 muteEnd = muteEnd + setMuteTime1 + setMuteTime2;
             }
-            if (this.beat[this.n]!=0 && (!setMuteOn || !(this.startTime+(this.offSet*60/tempo)>=muteStart))) {
+            if (this.beat[this.n]!=0 && (!setMuteOn || !(this.startTime+offset>=muteStart))) {
                 if (randMute === 0 || Math.random() > randMute) {
                     var that = this;
-                    this.osc = context.createOscillator();
-                    this.osc.frequency.value = freq || this.frequency;
-                    if (!simpleBeep) {  //the standard chime sound
-                        var gainDecay = context.createGain();
-                        gainDecay.gain.value = 1;
-                        gainDecay.connect(_lowPass || this.lowPass);
-                        gainDecay.gain.setTargetAtTime(0, this.startTime+this.offSet*60/tempo+.13, .045); //.04 also sounds pretty good.
-                        this.osc.connect(gainDecay);
-                        this.osc.start(this.startTime + (this.offSet*60/tempo)+.07);
-                        this.osc.stop(this.startTime + (this.offSet*60/tempo)+.37);
-                        delete gainDecay;
+                    if(!this.instr[0]) {
+                        this.osc = context.createOscillator();
+                        this.osc.frequency.value = freq || this.frequency;
+                        if (!simpleBeep) {  //the standard chime sound
+                            var gainDecay = context.createGain();
+                            gainDecay.gain.value = 1;
+                            gainDecay.connect(_lowPass || this.lowPass);
+                            gainDecay.gain.setTargetAtTime(0, this.startTime+offset+.13, .045); //.04 also sounds pretty good.
+                            this.osc.connect(gainDecay);
+                            this.osc.start(this.startTime + offset+.07);
+                            this.osc.stop(this.startTime + offset+.37);
+                            delete gainDecay;
+                            delete this.osc;
+                        }else{ //plain tone.
+                            this.osc.connect(_gainDecay || this.lowPass);
+                            this.osc.start(this.startTime + offset+.07);
+                            this.osc.stop(this.startTime + offset + (_cutoff+.37 || this.cutoff+.07)); //'cutoff' prevents popping.
+                        }
+                        if(_lowPass) {
+                            delete _lowPass;
+                            delete _gainDecay;
+                        }
+                    }else{ //if we're using instrument samples
+                        this.osc = context.createBufferSource();
+                        this.osc.buffer = samples.buffers[instr||this.instr[1]];
+                        if (this.frequency != 0)
+                            this.osc.detune.value = this.frequency;
+                        this.osc.connect(this.analyser);
+                        this.osc.start(this.startTime + offset+.07);
+                        if (this.beat[this.n]*60/tempo <= .274) //helps with wierd effects from a single sample repeating too quickly
+                            if(!Array.isArray(this.beat[this.n+1]))
+                                this.osc.stop(this.startTime + offset+.07+(this.beat[this.n]*60/tempo));
+                        InstrSamp.played.push(this.osc); //this is to allow cymbal sounds to stop precisely. Not sure if it will cause hangups.
+                        InstrSamp.played.shift();
                         delete this.osc;
-                    }else{ //plain tone.
-                        this.osc.connect(_gainDecay || this.lowPass);
-                        this.osc.start(this.startTime + (this.offSet*60/tempo)+.07);
-                        this.osc.stop(this.startTime + (this.offSet*60/tempo) + (_cutoff+.37 || this.cutoff+.07)); //'cutoff' prevents popping.
-                    }
-                    if(_lowPass) {
-                        delete _lowPass;
-                        delete _gainDecay;
                     }
                 }
             }
@@ -1150,18 +1277,7 @@ window.onload = function() {
     }
     if(location.search) { //if theres a query, we extract the beat from it
         var beat = decodeURI(location.href.slice(location.href.indexOf('?')+1));
-        beat = $.parseJSON(beat);
-        for (var i in beat) {
-            var orig = beat[i]
-            var nome = new Metronome()
-            metronomes.push(nome);
-            nome.beatInput.val(orig.beat).triggerHandler('change');
-            nome.pitchInput.val(orig.pitch).triggerHandler('change');
-            nome.gainInput.val(orig.gain).triggerHandler('change');
-            nome.offsetInput.val(orig.offset).triggerHandler('change');
-        }
-        setPan();
-        $(window).trigger('resize');
+        Metronome.reviveBeat(beat);
     }else
         metronomes.push(new Metronome); //otherwise, add a default metronome.
 }
