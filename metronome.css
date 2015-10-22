@@ -65,12 +65,12 @@ body {
     text-overflow: ellipsis;
 }
 .met select:hover {
-    width: 155px;
-    margin-right: -95px;
+    width: 160px;
+    margin-right: -100px;
     background-color: #FCF4D9;
-    -moz-appearance: button;
-    -webkit-appearance: button;
-    appearance: button;
+    -moz-appearance: menulist;
+    -webkit-appearance: menulist;
+    appearance: menulist;
     z-index: 10;
     border: solid 1px darkslategrey;
 }
@@ -302,5 +302,21 @@ button {
     padding-bottom: 25px;
     top: 0px;
     left: 0px;
+    }
+    .met select {
+        -moz-appearance: menulist;
+        -webkit-appearance: menulist;
+        appearance: menulist;
+        border-width: 1px;
+        border-radius: 3px;
+        width: 170px;
+        opacity: .88;
+    }
+    .met select:hover {
+        border-width: 1px;
+        border-radius: 3px;
+        width: 170px;
+        opacity: .88;
+        margin: auto;
     }
 }

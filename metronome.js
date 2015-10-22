@@ -141,11 +141,15 @@ window.onload = function() {
         }
     }, false);
     
-    context.decodeAudioData = context.decodeAudioData || context.webkitdecodeAudioData;
+    
+    context.decodeAudioData = context.decodeAudioData || context.webkitdecodeAudioData; //for safari...
     function InstrSamp() { //A class for loading and manipulating sound samples.
         var _this = this;
         this.buffers = []; //holds all the buffers.
+        this.hiHatPedal = []; //holds the buffer index of pedal down samples
+        this.hiHatHit = []; //holds the index number of any other hihat sound.
         this.counter = 0;
+        var timer = (new Date).getMilliseconds();
         InstrSamp.array.forEach(function(x,i,a) { //create a buffer node for each sound file.
             var path = './drums/' + x.toLowerCase() + '.ogg';
             var request = new XMLHttpRequest();
@@ -154,9 +158,13 @@ window.onload = function() {
             request.onload = function() {
                 context.decodeAudioData(request.response, function(buffer) {
                     _this.buffers[i] = buffer;
+                    if(x.search(/hihat_pedal(down)?/i) != -1)
+                        _this.hiHatPedal.push(i); //needed for hihat pedal functionality
+                    if (x.search(/hihat/i) != -1)
+                        _this.hiHatHit.push(i);
                     _this.counter++;
                     if(_this.counter == a.length) {
-                        console.log('complete');
+                        console.log(timer - (new Date).getMilliseconds());
                     }
                     
                 });
@@ -166,9 +174,9 @@ window.onload = function() {
         });
     }
     InstrSamp.array = [ //sound files to be buffered
-        'Kick',
-        'Ride',
-        'Snare',
+        //'Kick',
+        //'Ride',
+        //'Snare',
         'Snare_Center_V6',
         'Snare_Center_V11',
         'Snare_Center_V16',
@@ -198,9 +206,41 @@ window.onload = function() {
         'FloorTom_V16',
         'RackTom_V6',
         'RackTom_V11',
-        'RackTom_V16'
-    ];
+        'RackTom_V16',
+        'HiHat_Closed_Center_V4',
+        'HiHat_Closed_Center_V7',
+        'HiHat_Closed_Center_V10',
+        'HiHat_Half_Center_V4',
+        'HiHat_Half_Center_V7',
+        'HiHat_Half_Center_V10',
+        'HiHat_Open_Center_V4',
+        'HiHat_Open_Center_V7',
+        'HiHat_Open_Center_V10',
+        'HiHat_Pedal_V3',
+        'HiHat_Pedal_V5'
+    ].sort(function(a,b) { //sort alpha with last digits as secondary sort.
+        var a1 = a.replace(/\d+$/,'').toLowerCase();
+        var b1 = b.replace(/\d+$/,'').toLowerCase();
+        var a2 = parseInt(a.match(/\d+$/)[0]);
+        var b2 = parseInt(b.match(/\d+$/)[0]);
+        if (a1 === b1 && a2 > b2) return 1;
+        else if (a1 === b1 && a2 < b2) return -1;
+        else if (a>b)
+            return 1;
+        else if (a<b)
+            return -1;
+        else return 0;
+    });
+    InstrSamp.list = [
+        'Hi-Hat',
+        'Ride Cymbal',
+        'Kick Drum',
+        'Floor Tom',
+        'Rack Tom',
+        'Snare Drum'
+    ].sort();
     InstrSamp.played = new Array(40); //holds most recent buffersources for easy stopping.
+    InstrSamp.hiHatSrc = new Array(4); //holds hihat sounds to be stopped when hihat pedal down occurs.
     
     var samples = new InstrSamp(); //instantiate
     
@@ -888,7 +928,8 @@ window.onload = function() {
         
         this.instr = [false, 'pitch', 'A4', '0']; //whether or not an instrument sample is being used.
         this.instrInput = $('<select>').val('pitch').append(
-            $('<option>').html('Pitch').attr('value', 'pitch')
+            [$('<option>').html('<b>Pitch</b>').attr('value', 'pitch'),
+            $('<optgroup>').attr('label','----------------------------')]
         ).change(function() {
             _this.instr[1] = this.value; 
             if (this.value != 'pitch') {
@@ -904,13 +945,21 @@ window.onload = function() {
                 _this.pitchInput.trigger('change');
             }
         });
-        InstrSamp.array.forEach(function(x,i,a) {
-            var s = '&nbsp;';
-            if (i<9) s = '&nbsp;&nbsp;';
-            $(_this.instrInput).append(
-                $('<option>').html(i+1+'.'+s+x).attr('value', i)
-            );
+        InstrSamp.list.forEach(function(x,i,a) {
+            var name = x.match(/^.+(?=\s|-)/)[0];
+            var group = $('<optgroup>').attr('label', x);
+            $(_this.instrInput).append(group);
+            InstrSamp.array.forEach(function(x,i,a) {
+                if(x.substr(0,name.length) == name) {
+                    var s = '&nbsp;';
+                    if (i<9) s = '&nbsp;&nbsp;';
+                    group.append(
+                        $('<option>').html(i+1+'.'+s+x).attr('value', i)
+                    );
+                }
+            });
         });
+        
         
         $('<span>').append('Src:').append(_this.instrInput).append(_this.pitchInput).appendTo(_this.div);
         
@@ -1166,10 +1215,12 @@ window.onload = function() {
             var nome = new Metronome()
             metronomes.push(nome);
             nome.beatInput.val(orig.beat).triggerHandler('change');
-            nome.instrInput.val(orig.instr).triggerHandler('change');
+            nome.instrInput.val(orig.instr||'pitch').triggerHandler('change');
             nome.pitchInput.val(orig.pitch).triggerHandler('change');
             nome.gainInput.val(orig.gain).triggerHandler('change');
             nome.offsetInput.val(orig.offset).triggerHandler('change');
+            nome.instr[2] = Metronome.randNote();
+            nome.instr[3] = '0';
         }
         setPan();
         $(window).trigger('resize');
@@ -1190,11 +1241,12 @@ window.onload = function() {
     Metronome.prototype.visualizer = function() { //creates the visual pulse effect
         var div = this.div.get(0); //avoid using any jquery methods within an animation.
         var _this = this; //put 'this' in the closure.
+        this.analyser.smoothingTimeConstant = this.instr[0]?.5:.3;
         function vis() {
             _this.analyser.getByteFrequencyData(_this.dataArray); //used to create the blinking.
-            var perc = _this.dataArray[0]-(_this.instr?150:230); //-230 to make the blink shorter. drum sounds use 150
+            var perc = _this.dataArray[0]-(_this.instr[0]?150:230); //-230 to make the blink shorter. drum sounds use 150
             if(perc<0) perc = 0;
-            div.style.background = 'linear-gradient(to right, #BECCD6 0%,#acbece '+ (perc/(_this.instr?105:25)*40) +'%,#acbece '+ (100-perc/(_this.instr?105:25)*40) +'%,#BECCD6 100%)'; //#B3C8D8
+            div.style.background = 'linear-gradient(to right, #BECCD6 0%,#acbece '+ (perc/(_this.instr[0]?105:25)*40) +'%,#acbece '+ (100-perc/(_this.instr?105:25)*40) +'%,#BECCD6 100%)'; //#B3C8D8
             if((perc === 0 && !started) || (perc === 0 && !visPulse)) return;
             requestAnimationFrame(vis);
         }
@@ -1207,7 +1259,7 @@ window.onload = function() {
         while (this.startTime - this.time < lookAhead - offset) {
             if (this.n >= this.beat.length) this.n = 0; //loop the beat.
             if (Array.isArray(this.beat[this.n])) { //check if its pitch modified
-                if(!this.instr) {
+                if(!this.instr[0]) {
                     var freq = parseFloat(this.beat[this.n][1]).toFixed(2);
                     var beat = this.beat[this.n][0];
                     var _lowPass = context.createBiquadFilter() || context.webkitcreateBiquadFilter(); //we need a special LP for the diff pitch.
@@ -1259,12 +1311,29 @@ window.onload = function() {
                     }else{ //if we're using instrument samples
                         this.osc = context.createBufferSource();
                         this.osc.buffer = samples.buffers[instr||this.instr[1]];
+                        var x = parseInt(instr||this.instr[1]); //cant put this expression in indexof().
+                        if (samples.hiHatHit.indexOf(x) != -1) { //if its a hihat sound...
+                            if (samples.hiHatPedal.indexOf(x) != -1) {
+                                for(var x in InstrSamp.hiHatSrc) {
+                                    if(InstrSamp.hiHatSrc[x] instanceof AudioBufferSourceNode){
+                                        InstrSamp.hiHatSrc[x].stop(this.startTime + offset+.07); //stop all hi hat sounds on a hihat pedal down sound.
+                                    }
+                                }
+                            }else{
+                                InstrSamp.hiHatSrc.push(this.osc); //add all hihat sounds except pedal down
+                                InstrSamp.hiHatSrc.shift();
+                            }
+                        }
+                        
                         if (this.frequency != 0)
-                            this.osc.detune.value = this.frequency;
+                            this.osc.detune.value = this.frequency; //detune by frequency value in cents
                         this.osc.connect(this.analyser);
                         this.osc.start(this.startTime + offset+.07);
+                        
+                        
+                        
                         if (this.beat[this.n]*60/tempo <= .274) //helps with wierd effects from a single sample repeating too quickly
-                            if(!Array.isArray(this.beat[this.n+1]))
+                            if(!Array.isArray(this.beat[this.n+1]) && randMute === 0 && (((this.startTime+this.beat[this.n])*60/tempo)>muteStart))
                                 this.osc.stop(this.startTime + offset+.07+(this.beat[this.n]*60/tempo));
                         InstrSamp.played.push(this.osc); //this is to allow cymbal sounds to stop precisely. Not sure if it will cause hangups.
                         InstrSamp.played.shift();
