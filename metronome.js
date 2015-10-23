@@ -864,7 +864,7 @@ window.onload = function() {
         
         this.gain = context.createGain(); //met volume
         this.gain.gain.value = .6;
-        
+        this.muteSwitch = context.createGain(); //allows for chrome friendly muting of layers.
         
         if(!mobile && context.createStereoPanner) { //create the pan node if not mobile or safari.
             this.pan = context.createStereoPanner();
@@ -888,7 +888,8 @@ window.onload = function() {
         this.lowPass.Q.value = 1;
         this.lowPass.connect(this.analyser);
         
-        this.gain.connect(gain);
+        this.gain.connect(this.muteSwitch);
+        this.muteSwitch.connect(gain);
         //else this.gain.connect(gain);
         
         this.time = 0; //holds the time at which schd() is called.
@@ -1008,7 +1009,7 @@ window.onload = function() {
                 //$(window).trigger('resize');
             });
             if ((metronomes.filter(function(x) { return x.soloed })).length == 1 && _this.soloed) //if this was the only soloed track
-                metronomes.forEach(function(x,i,a) { if (!a[i].muted) a[i].gain.connect(gain) }); //unmute all.
+                metronomes.forEach(function(x,i,a) { if (!a[i].muted) a[i].muteSwitch.gain.value = 1; }); //unmute all.
             metronomes.splice(metronomes.indexOf(_this), 1);
             if(!mobile && context.createStereoPanner) setPan();
             if (metronomes.length == 0) stop();
@@ -1022,11 +1023,11 @@ window.onload = function() {
                         color: '#667587',
                         fontWeight: 'normal'
                     });
-                    metronomes.forEach(function(x,i,a) { if (!a[i].muted) a[i].gain.connect(gain) }); //unmute all that are not 'muted'.
+                    metronomes.forEach(function(x,i,a) { if (!a[i].muted) a[i].muteSwitch.gain.value = 1; }); //unmute all that are not 'muted'.
                     return;
                 }
                 if (!_this.soloed) { //if another layer is soloed, add this to the soloed group
-                    if (!_this.muted) _this.gain.connect(gain); //unmute if not 'muted'.
+                    if (!_this.muted) _this.muteSwitch.gain.value = 1; //unmute if not 'muted'.
                     $(this).css({
                         color: 'chartreuse',
                         fontWeight: 'bolder'
@@ -1035,7 +1036,8 @@ window.onload = function() {
                     return;
                 }
                 if (_this.soloed) { //if this and some other layer are soloed, take this out of the soloed group.
-                    _this.gain.disconnect();
+                    //_this.gain.disconnect();
+                    _this.muteSwitch.gain.value = 0;
                     $(this).css({
                         color: '#667587',
                         fontWeight: 'normal'
@@ -1050,15 +1052,18 @@ window.onload = function() {
                     fontWeight: 'bolder'
                 });
                 for (var i =0; i<metronomes.length; i++) {
-                    if (!metronomes[i].soloed)
-                        metronomes[i].gain.disconnect(); //mute all other layers.
+                    if (!metronomes[i].soloed) {
+                        //metronomes[i].gain.disconnect(); //mute all other layers.
+                        _this.muteSwitch.gain.value = 0;
+                    }
                 }
             }
         });
         
         $('<button>', {text: 'M'}).appendTo(_this.div).addClass('mute').click(function() { //the mute button
             if (!_this.muted) { //if its not muted, mute it.
-                _this.gain.disconnect();
+                //_this.gain.disconnect();
+                _this.muteSwitch.gain.value = 0;
                 _this.muted = true;
                 $(this).css({
                     color: 'orange',
@@ -1067,7 +1072,8 @@ window.onload = function() {
                 return;
             }
             if (_this.muted && _this.soloed) { //if its muted and soloed, we mute.
-                _this.gain.connect(gain);
+                //_this.gain.connect(gain);
+                _this.muteSwitch.gain.value = 1;
                 _this.muted = false;
                 $(this).css({
                     color: '#667587',
@@ -1084,7 +1090,8 @@ window.onload = function() {
                 return;
             }else{ //if this layer is muted and no other layers are soloed, unmute.
                 _this.muted = false;
-                _this.gain.connect(gain);
+                //_this.gain.connect(gain);
+                _this.muteSwitch.gain.value = 1;
                 $(this).css({
                     color: '#667587',
                     fontWeight: 'normal'
@@ -1093,7 +1100,8 @@ window.onload = function() {
         });
         
         if (metronomes.some(function(x) { return x.soloed })) { //if any layers are soloed, add this layer to soloed group.
-            this.gain.disconnect();
+            //this.gain.disconnect();
+            this.muteSwitch.gain.value = 0;
         }
         
         if (mets.style.marginTop.slice(0,-2) > 0) { //don't let the top go outside of the document.
@@ -1243,23 +1251,26 @@ window.onload = function() {
         var _this = this;
         this.startTime = time;
         this.n = 0;
+        this.valve = context.createGain();
+        this.valve.connect(this.analyser);
         this.schd();
         if(visPulse)this.visualizer();
-        this.valve.gain.value = 1;
     }
     
     Metronome.prototype.stop = function() {
         this.n = 0;
-        this.valve.disconnect();
-        this.valve = context.createGain();
-        this.valve.connect(this.analyser);
-        this.valve.gain.value = 0;
+        this.valve.disconnect(); //a way to stop instr samples.
+        
+        //this.valve.gain.value = 0;
     }
     
     Metronome.prototype.visualizer = function() { //creates the visual pulse effect
         var div = this.div.get(0); //avoid using any jquery methods within an animation.
         var _this = this; //put 'this' in the closure.
         this.analyser.smoothingTimeConstant = this.instr[0]?.5:.3;
+        if(this.instr[0]) {
+            this.analyser.minDecibels = -79; //makes instrument samples visuals more concise.
+        }
         function vis() {
             _this.analyser.getByteFrequencyData(_this.dataArray); //used to create the blinking.
             var perc = _this.dataArray[0]-(_this.instr[0]?150:230); //-230 to make the blink shorter. drum sounds use 150
