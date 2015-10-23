@@ -127,11 +127,11 @@ window.onload = function() {
                         context.suspend();
                 },20);
             },30000);
-        InstrSamp.played.forEach(function(x,i,a){ //stop any sound samples that may still be ringing such as cymbals.
+        /*InstrSamp.played.forEach(function(x,i,a){ //stop any sound samples that may still be ringing such as cymbals.
             if(x instanceof AudioBufferSourceNode)
                 setTimeout(function(){x.stop();}, 130);
             a[i] = null;
-        });
+        });*/
     }
     
     document.addEventListener('keydown', function(e) { //give space bar start/stop action.
@@ -192,7 +192,8 @@ window.onload = function() {
         'Ride_Bell_V5',
         'Ride_Bell_V8',
         'Ride_Bell_V10',
-        'Ride_Center_V5',
+        //'Ride_Center_V5',
+        'Ride_Center_V6',
         'Ride_Center_V8',
         'Ride_Center_V10',
         'Ride_Edge_V4',
@@ -216,8 +217,17 @@ window.onload = function() {
         'HiHat_Open_Center_V4',
         'HiHat_Open_Center_V7',
         'HiHat_Open_Center_V10',
+        'HiHat_Closed_Edge_V10',
+        'HiHat_Closed_Edge_V7',
+        'HiHat_Half_Edge_V10',
+        'HiHat_Half_Edge_V7',
+        'HiHat_Open_Edge_V10',
+        'HiHat_Open_Edge_V7',
         'HiHat_Pedal_V3',
-        'HiHat_Pedal_V5'
+        'HiHat_Pedal_V5',
+        'Crash1_Edge_V10',
+        'Crash1_Edge_V8',
+        'Crash1_Edge_V5'
     ].sort(function(a,b) { //sort alpha with last digits as secondary sort.
         var a1 = a.replace(/\d+$/,'').toLowerCase();
         var b1 = b.replace(/\d+$/,'').toLowerCase();
@@ -237,7 +247,8 @@ window.onload = function() {
         'Kick Drum',
         'Floor Tom',
         'Rack Tom',
-        'Snare Drum'
+        'Snare Drum',
+        'Crash'
     ].sort();
     InstrSamp.played = new Array(40); //holds most recent buffersources for easy stopping.
     InstrSamp.hiHatSrc = new Array(4); //holds hihat sounds to be stopped when hihat pedal down occurs.
@@ -709,7 +720,7 @@ window.onload = function() {
         var add = /[+-]/g;
         var mult = /[\/\*]/g;
         var parsedBeat = [];
-        str = str.replace(/[*].*?[*]/g, ''); //escape comments.
+        str = str.replace(/[!].*?[!]/g, ''); //escape comments.
         str = str.replace(/\[\s*\[/g, '[0,['); //need to insert 0's between closley nested reps
         str = str.replace(/\]([^,]+)\]/g, ']$1,0]'); //same as above but for the closing bracket.
         str = str.replace(/x/gi, '*'); //option to use 'x' for multiplication.
@@ -867,6 +878,8 @@ window.onload = function() {
         this.analyser.smoothingTimeConstant = .3;
         this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
         this.analyser.connect(this.pan);
+        this.valve = context.createGain();
+        this.valve.connect(this.analyser);
         
         this.lowPass = context.createBiquadFilter() || context.webkitcreateBiquadFilter();
         this.lowPass.type = 'lowpass';
@@ -933,20 +946,20 @@ window.onload = function() {
         ).change(function() {
             _this.instr[1] = this.value; 
             if (this.value != 'pitch') {
+                if(!_this.instr[0]) _this.instr[2] = _this.pitchInput.val();
                 _this.instr[0] = true;
-                _this.instr[2] = _this.pitchInput.val();
                 _this.pitchInput.val(_this.instr[3]);
                 _this.pitchInput.trigger('change');
             }
             else {
+                if(_this.instr[0])  _this.instr[3] = _this.pitchInput.val();
                 _this.instr[0] = false;
-                _this.instr[3] = _this.pitchInput.val();
                 _this.pitchInput.val(_this.instr[2]);
                 _this.pitchInput.trigger('change');
             }
         });
         InstrSamp.list.forEach(function(x,i,a) {
-            var name = x.match(/^.+(?=\s|-)/)[0];
+            var name = x.match(/^[A-Za-z]+/)[0];
             var group = $('<optgroup>').attr('label', x);
             $(_this.instrInput).append(group);
             InstrSamp.array.forEach(function(x,i,a) {
@@ -1089,7 +1102,7 @@ window.onload = function() {
     }
     
     Metronome.validate = function(str,type) { //check various inputs for syntax errors.
-        str = str.replace(/[*].*?[*]/g, ''); //escape comments.
+        str = str.replace(/[!].*?[!]/g, ''); //escape comments.
         var message = '';
         var errors = [];
         var beat = [
@@ -1232,10 +1245,15 @@ window.onload = function() {
         this.n = 0;
         this.schd();
         if(visPulse)this.visualizer();
+        this.valve.gain.value = 1;
     }
     
     Metronome.prototype.stop = function() {
         this.n = 0;
+        this.valve.disconnect();
+        this.valve = context.createGain();
+        this.valve.connect(this.analyser);
+        this.valve.gain.value = 0;
     }
     
     Metronome.prototype.visualizer = function() { //creates the visual pulse effect
@@ -1311,7 +1329,7 @@ window.onload = function() {
                     }else{ //if we're using instrument samples
                         this.osc = context.createBufferSource();
                         this.osc.buffer = samples.buffers[instr||this.instr[1]];
-                        var x = parseInt(instr||this.instr[1]); //cant put this expression in indexof().
+                        var x = parseInt(instr||this.instr[1]); 
                         if (samples.hiHatHit.indexOf(x) != -1) { //if its a hihat sound...
                             if (samples.hiHatPedal.indexOf(x) != -1) {
                                 for(var x in InstrSamp.hiHatSrc) {
@@ -1327,7 +1345,7 @@ window.onload = function() {
                         
                         if (this.frequency != 0)
                             this.osc.detune.value = this.frequency; //detune by frequency value in cents
-                        this.osc.connect(this.analyser);
+                        this.osc.connect(this.valve);
                         this.osc.start(this.startTime + offset+.07);
                         
                         
@@ -1335,8 +1353,8 @@ window.onload = function() {
                         if (this.beat[this.n]*60/tempo <= .274) //helps with wierd effects from a single sample repeating too quickly
                             if(!Array.isArray(this.beat[this.n+1]) && randMute === 0 && (((this.startTime+this.beat[this.n])*60/tempo)>muteStart))
                                 this.osc.stop(this.startTime + offset+.07+(this.beat[this.n]*60/tempo));
-                        InstrSamp.played.push(this.osc); //this is to allow cymbal sounds to stop precisely. Not sure if it will cause hangups.
-                        InstrSamp.played.shift();
+                        /*InstrSamp.played.push(this.osc); //this is to allow cymbal sounds to stop precisely. Not sure if it will cause hangups.
+                        InstrSamp.played.shift();*/
                         delete this.osc;
                     }
                 }
