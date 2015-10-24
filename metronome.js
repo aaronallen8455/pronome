@@ -107,7 +107,7 @@ window.onload = function() {
         worker.postMessage({'s':'stop'});
         setMuteStop();
         newButton.removeAttribute('disabled'); //enable the new layer button
-        if(navigator.userAgent.indexOf('Silk') == -1) setTimeout(function(){if(!started)context.suspend();},500); //save battery
+        if(navigator.userAgent.indexOf('Silk') == -1) setTimeout(function(){if(!started)context.suspend();},5000); //save battery
         if(mobile && navigator.userAgent.indexOf('Chrome') != -1) //bug workaround for mobile chrome.
             chrInter = setInterval(function() {
                 if(started) {
@@ -150,6 +150,7 @@ window.onload = function() {
         this.hiHatHit = []; //holds the index number of any other hihat sound.
         this.counter = 0;
         var timer = (new Date).getMilliseconds();
+        loaderProg(0,InstrSamp.array.length);
         InstrSamp.array.forEach(function(x,i,a) { //create a buffer node for each sound file.
             var path = './drums/' + x.toLowerCase() + '.ogg';
             var request = new XMLHttpRequest();
@@ -166,9 +167,11 @@ window.onload = function() {
                     if(_this.counter == a.length) {
                         console.log(timer - (new Date).getMilliseconds());
                     }
-                    
+                    var counter = _this.counter;
+                    requestAnimationFrame(function() {
+                        loaderProg(counter, a.length); //update loading progress
+                    });
                 });
-                
             }
             request.send();
         });
@@ -252,8 +255,6 @@ window.onload = function() {
     ].sort();
     InstrSamp.played = new Array(40); //holds most recent buffersources for easy stopping.
     InstrSamp.hiHatSrc = new Array(4); //holds hihat sounds to be stopped when hihat pedal down occurs.
-    
-    var samples = new InstrSamp(); //instantiate
     
     
     tempoInput.onchange = function() {
@@ -1054,7 +1055,7 @@ window.onload = function() {
                 for (var i =0; i<metronomes.length; i++) {
                     if (!metronomes[i].soloed) {
                         //metronomes[i].gain.disconnect(); //mute all other layers.
-                        _this.muteSwitch.gain.value = 0;
+                        metronomes[i].muteSwitch.gain.value = 0;
                     }
                 }
             }
@@ -1374,9 +1375,51 @@ window.onload = function() {
             this.n++;
         }
     }
+    
+    var loadingCanvas = document.createElement('canvas'); //the loading bar for samples buffering.
+    loadingCanvas.setAttribute('height', '42px');
+    var lc = loadingCanvas.getContext('2d');
+    var loadingDiv = $('<div>').css({ //div that holds the canvas
+        'position': 'relative',
+        'width' : '100%',
+        top : '20px',
+        textAlign : 'center',
+        margin : 0,
+        zIndex : -1
+    }).insertAfter(mets).append(loadingCanvas);
+    loadingDiv = loadingDiv.get(0);
+    
+    function loaderProg(c, t) { //draw the loading bar
+        var width = mets.offsetWidth*.70;
+        loadingCanvas.setAttribute('width',width+'px');
+        lc.beginPath();
+        lc.moveTo(5,1);
+        lc.lineTo(width-5,1);
+        lc.lineTo(width-5,41);
+        lc.lineTo(5,41);
+        lc.closePath();
+        lc.strokeStyle = '#707070';
+        lc.lineWidth = 1;
+        lc.stroke();
+        lc.fillStyle = '#707070';
+        lc.fillRect(9,5,(width-18)*(c/t),32);
+        lc.font = "bold 12px serif";
+        var text = 'Loading Drum Sounds... '+parseInt(c/t*100)+'%';
+        txtWidth = lc.measureText(text).width;
+        lc.globalCompositeOperation = "xor";
+        lc.fillText(text,(width/2-txtWidth/2),24.5);
+        if (c == t) {
+            loadingDiv.remove(); //remove when done loading.
+        }
+    }
+    
     if(location.search) { //if theres a query, we extract the beat from it
         var beat = decodeURI(location.href.slice(location.href.indexOf('?')+1));
         Metronome.reviveBeat(beat);
-    }else
+    }else{
         metronomes.push(new Metronome); //otherwise, add a default metronome.
+        $(window).trigger('resize');
+    }
+    
+    var samples = new InstrSamp(); //start buffering samples.
 }
