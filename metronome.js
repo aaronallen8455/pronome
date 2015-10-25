@@ -1377,7 +1377,7 @@ window.onload = function() {
     }
     
     var loadingCanvas = document.createElement('canvas'); //the loading bar for samples buffering.
-    loadingCanvas.setAttribute('height', '42px');
+    loadingCanvas.setAttribute('height', '150px');
     var lc = loadingCanvas.getContext('2d');
     var loadingDiv = $('<div>').css({ //div that holds the canvas
         'position': 'relative',
@@ -1387,29 +1387,39 @@ window.onload = function() {
         margin : 0,
         zIndex : -1
     }).insertAfter(mets).append(loadingCanvas);
-    loadingDiv = loadingDiv.get(0);
     
     function loaderProg(c, t) { //draw the loading bar
         var width = mets.offsetWidth*.70;
         loadingCanvas.setAttribute('width',width+'px');
+        lc.strokeStyle = '#5C5C5C';
+        lc.lineCap = 'round';
+        lc.lineWidth= 28;
         lc.beginPath();
-        lc.moveTo(5,1);
-        lc.lineTo(width-5,1);
-        lc.lineTo(width-5,41);
-        lc.lineTo(5,41);
-        lc.closePath();
-        lc.strokeStyle = '#707070';
-        lc.lineWidth = 1;
+        lc.moveTo(19,20);
+        lc.lineTo(width-19,20); //draw outline
         lc.stroke();
-        lc.fillStyle = '#707070';
-        lc.fillRect(9,5,(width-18)*(c/t),32);
+        lc.globalCompositeOperation = 'destination-out';
+        lc.lineWidth= 24;
+        lc.beginPath();
+        lc.moveTo(19,20);
+        lc.lineTo(width-19,20);
+        lc.stroke();
+        lc.globalCompositeOperation = 'source-over';
+        lc.lineWidth = 20;
+        lc.beginPath();
+        lc.moveTo(19,20);
+        lc.lineTo(19+((width-38)*(c/t)),20); //draw progress bar
+        lc.stroke();
+        lc.fillStyle = '#5C5C5C';
         lc.font = "bold 12px serif";
         var text = 'Loading Drum Sounds... '+parseInt(c/t*100)+'%';
         txtWidth = lc.measureText(text).width;
         lc.globalCompositeOperation = "xor";
-        lc.fillText(text,(width/2-txtWidth/2),24.5);
+        lc.fillText(text,(width/2-txtWidth/2),24.5); //draw text.
+        
+        
         if (c == t) {
-            loadingDiv.remove(); //remove when done loading.
+            loadingDiv.fadeOut().delay(0,this.remove()); //remove when done loading.
         }
     }
     
