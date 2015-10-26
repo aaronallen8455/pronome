@@ -149,7 +149,7 @@ window.onload = function() {
         this.hiHatPedal = []; //holds the buffer index of pedal down samples
         this.hiHatHit = []; //holds the index number of any other hihat sound.
         this.counter = 0;
-        var timer = (new Date).getMilliseconds();
+        //var timer = (new Date).getMilliseconds();
         loaderProg(0,InstrSamp.array.length);
         InstrSamp.array.forEach(function(x,i,a) { //create a buffer node for each sound file.
             var path = './drums/' + x.toLowerCase() + '.ogg';
@@ -161,11 +161,11 @@ window.onload = function() {
                     _this.buffers[i] = buffer;
                     if(x.search(/hihat_pedal(down)?/i) != -1)
                         _this.hiHatPedal.push(i); //needed for hihat pedal functionality
-                    if (x.search(/hihat/i) != -1)
+                    if (x.search(/hihat_(?!closed)/i) != -1) //closed samples should pass thru.
                         _this.hiHatHit.push(i);
                     _this.counter++;
                     if(_this.counter == a.length) {
-                        console.log(timer - (new Date).getMilliseconds());
+                        //console.log(timer - (new Date).getMilliseconds());
                     }
                     var counter = _this.counter;
                     requestAnimationFrame(function() {
@@ -964,10 +964,16 @@ window.onload = function() {
             var name = x.match(/^[A-Za-z]+/)[0];
             var group = $('<optgroup>').attr('label', x);
             $(_this.instrInput).append(group);
+            var counter = 1;
             InstrSamp.array.forEach(function(x,i,a) {
                 if(x.substr(0,name.length) == name) {
                     var s = '&nbsp;';
                     if (i<9) s = '&nbsp;&nbsp;';
+                    if(i>0 && x.replace(/\d+$/,'') == a[i-1].replace(/\d+$/,''))
+                        counter++; //replace the V value with a more readable #.
+                    else counter = 1;
+                    x = x.replace(/_/g, ' ');
+                    x = x.replace(/\d+$/, counter);
                     group.append(
                         $('<option>').html(i+1+'.'+s+x).attr('value', i)
                     );
@@ -1305,7 +1311,7 @@ window.onload = function() {
                         _gainDecay.gain.setTargetAtTime(0, this.startTime + offset + _cutoff+.07, 0||0.0009); //cuts off a pop. 0 throws error in firefox
                     }else _lowPass.frequency.value = freq*4;
                 }else{ //if its an instrument with @ modifier.
-                    var instr = parseInt(this.beat[this.n][1])-1;
+                    var instr = (parseInt(this.beat[this.n][1])-1).toString(); //make it string so '0' is possible.
                     var beat = this.beat[this.n][0];
                 }
             }
@@ -1377,7 +1383,7 @@ window.onload = function() {
     }
     
     var loadingCanvas = document.createElement('canvas'); //the loading bar for samples buffering.
-    loadingCanvas.setAttribute('height', '150px');
+    loadingCanvas.setAttribute('height', '150px'); //has to be 150px bc of chrome bug.
     var lc = loadingCanvas.getContext('2d');
     var loadingDiv = $('<div>').css({ //div that holds the canvas
         'position': 'relative',
@@ -1392,34 +1398,39 @@ window.onload = function() {
         var width = mets.offsetWidth*.70;
         loadingCanvas.setAttribute('width',width+'px');
         lc.strokeStyle = '#5C5C5C';
+        lc.fillStyle = '#5C5C5C';
+        lc.save();
+        lc.scale(.6,1); //make it less rounded
         lc.lineCap = 'round';
         lc.lineWidth= 28;
         lc.beginPath();
-        lc.moveTo(19,20);
-        lc.lineTo(width-19,20); //draw outline
+        lc.moveTo(18,20);
+        lc.lineTo(width*1.667-18,20); //draw outline
         lc.stroke();
         lc.globalCompositeOperation = 'destination-out';
         lc.lineWidth= 24;
         lc.beginPath();
         lc.moveTo(19,20);
-        lc.lineTo(width-19,20);
+        lc.lineTo(width*1.667-19,20);
         lc.stroke();
         lc.globalCompositeOperation = 'source-over';
         lc.lineWidth = 20;
         lc.beginPath();
         lc.moveTo(19,20);
-        lc.lineTo(19+((width-38)*(c/t)),20); //draw progress bar
+        if(c) lc.lineTo(19+((width*1.667-38)*(c/t)),20); //draw progress bar
         lc.stroke();
-        lc.fillStyle = '#5C5C5C';
+        lc.restore();
         lc.font = "bold 12px serif";
         var text = 'Loading Drum Sounds... '+parseInt(c/t*100)+'%';
         txtWidth = lc.measureText(text).width;
+        
         lc.globalCompositeOperation = "xor";
+        
         lc.fillText(text,(width/2-txtWidth/2),24.5); //draw text.
         
         
         if (c == t) {
-            loadingDiv.fadeOut().delay(0,this.remove()); //remove when done loading.
+            loadingDiv.fadeOut(); //remove when done loading.
         }
     }
     
