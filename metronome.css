@@ -134,6 +134,27 @@ button {
     border: solid 0px;
     color: #667587;
 }
+.msg {
+    position: fixed;
+    padding: 10px;
+    z-index: 100;
+    text-align: center;
+    background-color: #69757f;
+    border: solid 1px black;
+    border-radius: 5px;
+}
+.msg button {
+    display: block;
+    float: right;
+    margin-left: 15px;
+}
+.msg>p {
+    padding: 10px;
+    background-color: #21262c;
+    color: antiquewhite;
+    border-radius: 3px;
+    margin-bottom: 10px;
+}
 #controls {
     
     width: inherit;

@@ -152,7 +152,12 @@ window.onload = function() {
         //var timer = (new Date).getMilliseconds();
         loaderProg(0,InstrSamp.array.length);
         InstrSamp.array.forEach(function(x,i,a) { //create a buffer node for each sound file.
-            var path = './drums/' + x.toLowerCase() + '.ogg';
+            var path;
+            //a = new Audio();
+            //if(a.canPlayType("audio/ogg")) //check for compatability
+                path = './drums/' + x.toLowerCase() + '.ogg';
+            //else path = './drums/aiff/' + x.toLowerCase() + '.aiff';
+            //delete a;
             var request = new XMLHttpRequest();
             request.open('GET', path);
             request.responseType = 'arraybuffer';
@@ -494,7 +499,7 @@ window.onload = function() {
     
     mets.style.marginTop = ($(window).innerHeight()/2 - mets.offsetHeight/2) + 'px'; //keep it centered vertically.
     
-    window.onresize = function() {
+    window.onresize = function() { //keep mets centered.
         mets.style.marginTop = ($(window).innerHeight()/2 - mets.offsetHeight/2) + 'px';
         if(parseFloat(mets.style.marginTop.slice(0,-2)) <0) mets.style.marginTop = '0px';
         options.css({
@@ -503,6 +508,86 @@ window.onload = function() {
         });
         metronomes.forEach(function(x) { x.beatInput.trigger('input') }); //resize the beat input if needed.
     };
+    
+    function msg(str, inputField, ok, cancel, successCall, failCall) { //dialog creator.
+        var back = $('<div>').css({ //darkens the background.
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            backgroundColor: 'black',
+            opacity: .5,
+            zIndex: 99
+        }).appendTo(document.body);
+        str = str.replace(/\n/g, '<br />');
+        var _div = $('<div>').appendTo(document.body).addClass('msg').append('<p>'+str+'</p>'); //message div
+        var input;
+        var email;
+        var pass;
+        if (inputField)
+            _div.children(0).append('<br /><br />');
+        if (inputField === 'createAcct') { //if were creating an account.
+            var p = $('<p>').appendTo(_div.children(0)).css('textAlign', 'left').css('padding-left', '20px');
+            p.append('E-mail:<br />');
+            email = $('<input>').attr('type', 'text').appendTo(p);
+            p.append('<br />');
+            p.append('Password:<br />');
+            pass = $('<input>').attr('type', 'password').appendTo(p);
+        }else if (inputField)
+            input = $('<input>').attr('type', 'text').appendTo(_div.children(0)).focus();
+        if (cancel) {
+            _div.append(
+                $('<button>').html('Cancel').click(function() {
+                    if (failCall)
+                        failCall();
+                    close();
+                })
+            );
+        }
+        if (ok) {
+            if (ok === true) ok = 'OK';
+            _div.append(
+                $('<button>').html(ok).click(function() {
+                    if(email && pass) { //creating an account.
+                        if(email.val() == '' || pass.val() == '')
+                            return;
+                        successCall([email.val(),pass.val()]);
+                    }else{ //normal dialog
+                        if (input && input.val() == '')
+                            return;
+                        if (!input) input = true;
+                        else input = input.val();
+                        if (successCall)
+                            successCall(input); //success callback
+                    }
+                    close();
+                })
+            );
+            if (!inputField)
+                _div.children(1).focus();
+        }
+        
+        window.addEventListener('resize', resizer, false);
+        function resizer() { //keep everything properly positioned.
+            var width = window.innerWidth;
+            var height = window.innerHeight;
+            _div.css('top', height/2 - _div.height()/2);
+            _div.css('left', width/2 - 200);
+            if(446 > width) _div.css('width', width-32);
+            else _div.css('width', 400);
+            back.css('width', $(document).width());
+            back.css('height', $(document).height());
+            //back.css('left', window.pageXOffset);
+            //back.css('top', window.pageYOffset);
+            if((_div.offset()).top<5) _div.css('top', 5);
+            if((_div.offset()).left<5) _div.css('left', 5);
+        }
+        function close() { //close the window.
+            window.removeEventListener('resize', resizer, false);
+            _div.remove();
+            back.remove();
+        }
+        resizer();
+    }
     
     
     var savedBeats = $('<select>', {css: { width: 165, marginBottom: '3px'}}); //holds the saved beats.
@@ -540,17 +625,24 @@ window.onload = function() {
             var beat = Metronome.stringifyBeat(metronomes); //get text representation of the beat.
             if(!beat) return false;
             function getBeatName() { //ask for a name for the beat
-                var name = prompt('Enter a name for this beat.');
-                if(!name || name === 'none') return;
-                if (localStorage.getItem(name) && name !== 'none') { 
-                    if(confirm('That name is already used. Do you want to replace the old beat with this one?')) {
+                //var name = prompt('Enter a name for this beat.');
+                msg('Enter a name for this beat.',true,'Save Beat',true,entered);
+                function entered(name) {
+                    if(!name || name === 'none') return;
+                    if (localStorage.getItem(name) && name !== 'none') { 
+                        function yes() {
+                            localStorage.setItem(name, beat);
+                            updateSaved();
+                        }
+                        function no() {
+                            getBeatName();
+                        }
+                        msg('That name is already used. Do you want to replace the old beat with this one?',false,'Yes',true, yes, no);
+                        //if(confirm('That name is already used. Do you want to replace the old beat with this one?')) {
+                    }else{
                         localStorage.setItem(name, beat);
                         updateSaved();
-                    }else
-                        getBeatName();
-                }else{
-                    localStorage.setItem(name, beat);
-                    updateSaved();
+                    }
                 }
             }
             getBeatName();
@@ -565,7 +657,9 @@ window.onload = function() {
     ).append(
         $('<button>', {text: 'Delete'}).css('display', 'inline-block').click( function() {
             if (savedBeats.val() !== 'none') 
-                if (confirm('Are you want to delete \"'+savedBeats.val()+'\" ?')) {
+                msg('Are you want to delete "'+savedBeats.val()+'" ?',false, 'Delete',true,yes)
+                function yes() {
+                //if (confirm('Are you want to delete \"'+savedBeats.val()+'\" ?')) {
                     localStorage.removeItem(savedBeats.val());
                     updateSaved();
                 }
@@ -1174,7 +1268,7 @@ window.onload = function() {
                 if(str.search(x[0]) > -1)
                     if(x[1]) message += '- ' + x[1] + '\n';
             });
-            if(message) alert('The following syntax errors were found:\n' + message);
+            if(message) msg('<u>The following syntax errors were found:</u>\n' + message,false,true);
             return false;
         }
         return true;
@@ -1229,7 +1323,7 @@ window.onload = function() {
                 obj['offset'] = metronomes[i].offsetInput.val();
                 result.push(obj);
             }else{
-                alert('This beat contains errors and could not be saved/exported.');
+                msg('This beat contains errors and could not be saved/exported.',false,true);
                 return false;
             }
         }
@@ -1400,24 +1494,24 @@ window.onload = function() {
         lc.strokeStyle = '#5C5C5C';
         lc.fillStyle = '#5C5C5C';
         lc.save();
-        lc.scale(.6,1); //make it less rounded
+        lc.scale(.75,1); //make it less rounded
         lc.lineCap = 'round';
         lc.lineWidth= 28;
         lc.beginPath();
         lc.moveTo(18,20);
-        lc.lineTo(width*1.667-18,20); //draw outline
+        lc.lineTo(width*1.333-18,20); //draw outline
         lc.stroke();
         lc.globalCompositeOperation = 'destination-out';
         lc.lineWidth= 24;
         lc.beginPath();
         lc.moveTo(19,20);
-        lc.lineTo(width*1.667-19,20);
+        lc.lineTo(width*1.333-19,20);
         lc.stroke();
         lc.globalCompositeOperation = 'source-over';
         lc.lineWidth = 20;
         lc.beginPath();
         lc.moveTo(19,20);
-        if(c) lc.lineTo(19+((width*1.667-38)*(c/t)),20); //draw progress bar
+        if(c) lc.lineTo(19+((width*1.333-38)*(c/t)),20); //draw progress bar
         lc.stroke();
         lc.restore();
         lc.font = "bold 12px serif";
