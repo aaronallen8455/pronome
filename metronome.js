@@ -819,6 +819,7 @@ window.onload = function() {
         str = str.replace(/\[\s*\[/g, '[0,['); //need to insert 0's between closley nested reps
         str = str.replace(/\]([^,]+)\]/g, ']$1,0]'); //same as above but for the closing bracket.
         str = str.replace(/x/gi, '*'); //option to use 'x' for multiplication.
+        str = str.replace(/[\\|]/g, '|,'); //prep a 'chop' cell
         var cells = str.split(','); //beat values are seperated by commas.
         for (var i in cells) {
             if (cells[i].search(/@/) != -1) { //if theres a pitch modifier
@@ -830,6 +831,10 @@ window.onload = function() {
                 if(!repStart) var repStart = [];
                 repStart.push(parsedBeat.length);
                 cells[i] = cells[i].slice(cells[i].search(/\[/)+1);
+            }
+            if (cells[i].search(/[\\|]/) != -1) { //if it has a chop (within a [])
+                var chop = parsedBeat.length;
+                cells[i] = cells[i].slice(0,-1);
             }
             if (cells[i].search(/\]/) != -1) { //if this cell ends a multi-cell repeat
                 var repTimes = parseInt(cells[i].match(/\]\(?(\d+)\)?/)[1]);
@@ -929,10 +934,18 @@ window.onload = function() {
                 if (repTimes) { //if a multi-cell repeat needs to be executed.
                     var len = repStart.length-1; //get innermost nested repeat.
                     var repStop = parsedBeat.length -1;
-                    for(var h=1; h<repTimes; h++)
-                        for(var p=repStart[len]; p<=repStop; p++) {
-                            if(Array.isArray(parsedBeat[p])) parsedBeat.push(parsedBeat[p].slice(0)); //we have to clone any arrays.
-                            else parsedBeat.push(parsedBeat[p]);
+                    for(var h=1; h<repTimes; h++) //loop for repTimes
+                        if(chop!=undefined && h === repTimes-1) { //if were chopping
+                            for (var p=repStart[len]; p<=chop; p++) {
+                                
+                                if(Array.isArray(parsedBeat[p])) parsedBeat.push(parsedBeat[p].slice(0)); //we have to clone any arrays.
+                                else parsedBeat.push(parsedBeat[p]);
+                            }       
+                        }else{
+                            for(var p=repStart[len]; p<=repStop; p++) {
+                                if(Array.isArray(parsedBeat[p])) parsedBeat.push(parsedBeat[p].slice(0)); //we have to clone any arrays.
+                                else parsedBeat.push(parsedBeat[p]);
+                            }
                         }
                     repStart.pop(); //in case of nested repeats, get next outer rep.
                     if (repLast && (repLast.search(/\d/) != -1)) { //if modifier on the final rep
@@ -943,6 +956,7 @@ window.onload = function() {
                     }
                     repTimes = undefined;
                     repLast = undefined;
+                    chop = undefined;
                 }
             }
             add.lastIndex = 0;
@@ -1215,12 +1229,13 @@ window.onload = function() {
         var message = '';
         var errors = [];
         var beat = [
-            [/\)[^,\]@]*\(|\)[^,@]*[a-z]+[^,]*/, 'Invalid final repeat modifier.'],
+            [/\)[^,\]@\\|]*\(|\)[^,@]*[a-z]+[^,]*/, 'Invalid final repeat modifier.'],
             [/\(\d*[^\d)]+\d*\)|\(\)/, 'The number of repeats must be an integer.'],
             [/\][^\d(]|\]$/, 'Missing \'n\' value for multi-cell repeat.'],
             [/,$|,\s*,|^,|^$/, 'Empty beat cell.'],
             [/^\[?\D+,|,\[?\D+,|,[^,\d\s]+$|\d[a-wyzA-WYZ]|[+\-*xX/][^\d.]|[^\d).\s]$|\D\.\D|\D\.$|\.\d+\./, 'Invalid beat cell value.'],
-            [/@[^a-gA-G\d]|@[a-gA-G]?[b#]?$|@[a-gA-G][^#b\d]/, 'Invalid pitch assignment using \'@\'.']
+            [/@[^a-gA-G\d]|@[a-gA-G]?[b#]?$|@[a-gA-G][^#b\d]/, 'Invalid pitch assignment using \'@\'.'],
+            [/[^\[,]\[/, 'Incorrect multi-cell repeat syntax']
         ];
         var pitch = [
             [/^\D+$/],
@@ -1370,13 +1385,14 @@ window.onload = function() {
         var _this = this; //put 'this' in the closure.
         this.analyser.smoothingTimeConstant = this.instr[0]?.5:.3;
         if(this.instr[0]) {
-            this.analyser.minDecibels = -79; //makes instrument samples visuals more concise.
+            this.analyser.minDecibels = -73; //makes instrument samples visuals more concise.
         }
         function vis() {
+            var factor = _this.instr[0]?150:230;
             _this.analyser.getByteFrequencyData(_this.dataArray); //used to create the blinking.
-            var perc = _this.dataArray[0]-(_this.instr[0]?150:230); //-230 to make the blink shorter. drum sounds use 150
+            var perc = _this.dataArray[0]-factor; //-230 to make the blink shorter. drum sounds use 150
             if(perc<0) perc = 0;
-            div.style.background = 'linear-gradient(to right, #BECCD6 0%,#acbece '+ (perc/(_this.instr[0]?105:25)*40) +'%,#acbece '+ (100-perc/(_this.instr?105:25)*40) +'%,#BECCD6 100%)'; //#B3C8D8
+            div.style.background = 'linear-gradient(to right, #BECCD6 0%,#acbece '+ (perc/(255-factor)*40) +'%,#acbece '+ (100-perc/(255-factor)*40) +'%,#BECCD6 100%)'; //#B3C8D8
             if((perc === 0 && !started) || (perc === 0 && !visPulse)) return;
             requestAnimationFrame(vis);
         }
