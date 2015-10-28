@@ -328,6 +328,7 @@ window.onload = function() {
         var top = metClone[0].beat.reduce(metReduce,0);
         
         var count = 1;
+        var tO = new Date(); //used to check if beat is too asymmetrical
         while(count !== 0){ //get the longest beat cycle set (least common denominator).
             count = 0;
             for(var i=1; i<metClone.length; i++) {
@@ -335,13 +336,15 @@ window.onload = function() {
                 while(((top.toFixed(5) / metClone[i].beat.reduce(metReduce,0)).toFixed(5)).toString().slice(-6) != 0) {
                     top += metClone[0].beat.reduce(metReduce,0);
                     count++; //we'll need to cycle through all the layers again.
-                    if(count>500)
+                    
+                    if((new Date())-tO > 3)
                         return false;
                         //throw new Error('This beat is too asymmetrical be graphed.');
                 }
                 if(i===1) count=0; //avoid unnecessary repetition.
             }
         }
+        try {
         metronomes.forEach(function(m) { //compute # of cycles for each layer based on the GCD.
             var orig,den;
             orig = den = m.beat.reduce(metReduce,0);
@@ -350,10 +353,17 @@ window.onload = function() {
                 while(((den.toFixed(5) / top.toFixed(5)).toFixed(5)).toString().slice(-6) != 0) {
                     count++;
                     den += orig;
+
+                    if((new Date())-tO > 3) //check for timeout
+                        throw new Error();
                 }
             });
             cycles.push(count);
         });
+        }
+        catch (e) {
+            return false; //timed out.
+        }
         return cycles;
     }
     
@@ -404,22 +414,31 @@ window.onload = function() {
     }
     
     function drawGraph() { //Create the beat graph.
+        
+        var tO = new Date();
+        function timeOut() { //we need to check for timeout and throw error if so.
+            canvas.setAttribute('height',15);
+            c.fillStyle = '#C94444';
+            c.font = 'bold 15px serif';
+            if(!mobile)
+                c.fillText('Error: This beat could not be graphed because its too asymmetrical.',20,10);
+            else
+                c.fillText('Graph Error: Beat is too asymmetrical.',20,10);
+            throw new Error();
+        }
+        
         var width = mets.clientWidth-8;
         canvas.setAttribute('width', width);
         canvas.setAttribute('height', width);
         graphDiv.css('width', width);
-        $(window).trigger('resize');
+        
         c.beginPath();
         c.arc(width/2,width/2,width/2.1,0,2*Math.PI);
         c.fillStyle = '#adbbcc';
         c.fill();
         var cycles;
         if(cycles = getCycles()){}
-        else {
-            canvas.setAttribute('height',15);
-            c.fillText('Error: This beat could not be graphed because its too asymmetrical.',20,10);
-            return;
-        }
+        else timeOut();
             
         function metReduce(p,c) { //used to reduce a beat array.
             if(Array.isArray(p) && Array.isArray(c))
@@ -432,42 +451,51 @@ window.onload = function() {
         }
         totalCycleTime = metronomes[0].beat.reduce(metReduce,0) * cycles[0]; //the beat cycle sum.
         if(started) graphNeedle(width/2);
-        for(var i=0; i<metronomes.length; i++) {
-            var radius = width/7 + (metronomes.length-i)*(3/10*width/metronomes.length);
-            var tickTop;
-            if(i===0) tickTop = 11;
-            else tickTop = 3/20*width/metronomes.length;
-            var tickBot;
-            if(i===metronomes.length-1) tickBot = 11;
-            else tickBot = 3/20*width/metronomes.length;
-            var beatCycle = [];
-            c.save(); //save untransformed state.
-            c.translate(width/2,width/2);
-            //c.fillStyle = 'black';
-            //c.fillRect(0,0,1,1); //mark center for calibration.
-            c.rotate(1*Math.PI);
-            c.rotate(metronomes[i].offSet/totalCycleTime*2*Math.PI);
-            c.beginPath();
-            for(var p = 0; p<cycles[i]; p++)
-                beatCycle = beatCycle.concat(metronomes[i].beat); //create an array that contains entire beat cycle.
-            beatCycle.forEach(function(i,a,x){ //convert beat values to radians.
-                if(Array.isArray(i))
-                   i = i[0];
-                x[a]=i/totalCycleTime*2*Math.PI;
-            }); 
-            
-            for(var p=0; p<beatCycle.length;p++) {
-                c.lineTo(0,radius-tickBot+1); //the tick mark
-                c.lineTo(0,radius+tickTop-1);
-                c.arc(0,0,radius,.5*Math.PI,beatCycle[p]+.5*Math.PI); //the circle.
-                c.rotate(beatCycle[p]);
+        try {
+            for(var i=0; i<metronomes.length; i++) {
+                var radius = width/7 + (metronomes.length-i)*(3/10*width/metronomes.length);
+                var tickTop;
+                if(i===0) tickTop = 11;
+                else tickTop = 3/20*width/metronomes.length;
+                var tickBot;
+                if(i===metronomes.length-1) tickBot = 11;
+                else tickBot = 3/20*width/metronomes.length;
+                var beatCycle = [];
+                c.save(); //save untransformed state.
+                c.translate(width/2,width/2);
+                //c.fillStyle = 'black';
+                //c.fillRect(0,0,1,1); //mark center for calibration.
+                c.rotate(1*Math.PI);
+                c.rotate(metronomes[i].offSet/totalCycleTime*2*Math.PI);
+                c.beginPath();
+                for(var p = 0; p<cycles[i]; p++)
+                    beatCycle = beatCycle.concat(metronomes[i].beat); //create an array that contains entire beat cycle.
+                beatCycle.forEach(function(i,a,x){ //convert beat values to radians.
+                    if(Array.isArray(i))
+                       i = i[0];
+                    x[a]=i/totalCycleTime*2*Math.PI;
+                }); 
+
+                for(var p=0; p<beatCycle.length;p++) {
+                    c.lineTo(0,radius-tickBot+1); //the tick mark
+                    c.lineTo(0,radius+tickTop-1);
+                    c.arc(0,0,radius,.5*Math.PI,beatCycle[p]+.5*Math.PI); //the circle.
+                    c.rotate(beatCycle[p]);
+                    if ((new Date())-tO > 500) //check for timeout
+                        timeOut();
+                }
+                c.strokeStyle = 'hsl('+ ((metronomes.length-i)*200/metronomes.length) + ',55%,35%)' //give each layer a color.
+                c.lineWidth = 1.5;
+                if(mobile) c.lineWidth = 2;
+                c.stroke();
+                c.restore();
             }
-            c.strokeStyle = 'hsl('+ ((metronomes.length-i)*200/metronomes.length) + ',55%,35%)' //give each layer a color.
-            c.lineWidth = 1.5;
-            if(mobile) c.lineWidth = 2;
-            c.stroke();
-            c.restore();
         }
+        catch (e) { //timeout occured
+            $(window).trigger('resize');
+            return;
+        }
+        $(window).trigger('resize');
     }
                 
     
