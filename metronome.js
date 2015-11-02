@@ -354,7 +354,7 @@ window.onload = function() {
                     count++;
                     den += orig;
 
-                    if((new Date())-tO > 3) //check for timeout
+                    if((new Date())-tO > (mobile?50:10)) //check for timeout
                         throw new Error();
                 }
             });
@@ -413,18 +413,21 @@ window.onload = function() {
         requestAnimationFrame(rotateNeedle);
     }
     
+    
+    
     function drawGraph() { //Create the beat graph.
         
         var tO = new Date();
-        function timeOut() { //we need to check for timeout and throw error if so.
+        function timeOut(i) { //we need to check for timeout and throw error if so.
             canvas.setAttribute('height',15);
             c.fillStyle = '#C94444';
             c.font = 'bold 15px serif';
             if(!mobile)
-                c.fillText('Error: This beat could not be graphed because its too asymmetrical.',20,10);
+                c.fillText('Error: This beat could not be graphed because it\'s too asymmetrical. '+(i?'(layer '+i+')':''),20,10);
             else
                 c.fillText('Graph Error: Beat is too asymmetrical.',20,10);
-            throw new Error();
+            if(i != undefined) throw new Error();
+            else $(window).trigger('resize');
         }
         
         var width = mets.clientWidth-8;
@@ -438,7 +441,10 @@ window.onload = function() {
         c.fill();
         var cycles;
         if(cycles = getCycles()){}
-        else timeOut();
+        else {
+            timeOut();
+            return;
+        }
             
         function metReduce(p,c) { //used to reduce a beat array.
             if(Array.isArray(p) && Array.isArray(c))
@@ -482,7 +488,7 @@ window.onload = function() {
                     c.arc(0,0,radius,.5*Math.PI,beatCycle[p]+.5*Math.PI); //the circle.
                     c.rotate(beatCycle[p]);
                     if ((new Date())-tO > 500) //check for timeout
-                        timeOut();
+                        timeOut(i+1);
                 }
                 c.strokeStyle = 'hsl('+ ((metronomes.length-i)*200/metronomes.length) + ',55%,35%)' //give each layer a color.
                 c.lineWidth = 1.5;
@@ -534,7 +540,8 @@ window.onload = function() {
             top: controlWrap.offsetHeight,
             width: controlWrap.offsetWidth -8.5
         });
-        metronomes.forEach(function(x) { x.beatInput.trigger('input') }); //resize the beat input if needed.
+        metronomes.forEach(function(x){x.beatInput.css('maxWidth',x.div.width()-60);});
+        //metronomes.forEach(function(x) { x.beatInput.trigger('input') }); //resize the beat input if needed.
     };
     
     function msg(str, inputField, ok, cancel, successCall, failCall) { //dialog creator.
@@ -1039,7 +1046,7 @@ window.onload = function() {
         this.cutoff = (1/this.frequency)*20; //get 20 periods of the sine wave as a cutoff point to reduce popping.
         
         this.div = $('<div>').insertBefore(graphDiv).addClass('met').fadeOut(0).fadeIn(240); //main layer element
-        
+        /*
         this.beatTxtWidth = $('<div>', {css: { //this div is used to expand the inputBeat field to it contents size
             //maxWidth: this.div.width() - 60, 
             minWidth: '137px', 
@@ -1049,9 +1056,158 @@ window.onload = function() {
             display: 'none', 
             fontFamily: 'monospace',
             fontSize: '1em'
-        }}).appendTo(document.body);
+        }}).appendTo(document.body);*/
+        this.beatInput = $('<div>').css('maxWidth',this.div.width()-60).addClass('beat').attr('contenteditable', 'true').append( //holds the colored span elements
+            
+                $('<span>').html(1).attr('contenteditable', 'true')
+            
+        );
+        this.beatInput.val = function(str) {
+            if (str != undefined) {
+                _this.beatInput.html(str);
+                return this;
+            }
+            else{
+                return _this.beatInput.html().replace(/<.+?>/g, '');
+            }
+        }
+        this.beatInput.get(0).value = function() {
+            return _this.beatInput.val();
+        }
+        this.beatInput.working = false;
+        this.beatInput.get(0).addEventListener('blur', function(e) { //parse beat on blur
+            if (!_this.beatInput.working) {
+                if(Metronome.validate(this.value())) {
+                    this.classList.remove('error');
+                    _this.beat = parseBeat(this.value());
+                }
+                else this.classList.add('error');
+            }
+        }, false);
         
-        this.beatInput = $('<input>').css('width', '137px').css('fontFamily', 'monospace').css('fontSize','1em').attr('type', 'text').change(function() { //the beat input
+        this.beatInput.on('keydown', function(e) { //captures the keycode. used for deleting.
+            this.key = e.keyCode;
+        });
+        
+        this.beatInput.old = this.beatInput.html().replace(/<.+?>/g, '');
+        this.beatInput.on('input', function() { //color the input
+            _this.beatInput.working = true;
+            var old = _this.beatInput.old;
+            var current = this.innerHTML.replace(/<.+?>/g, '');
+            current = current.replace(/&.+?;/g, '');
+            
+            var index = old.length;
+            for (var i=0; i<old.length; i++) { //check if the new value is different than old and set the index of change.
+                if(old[i] !== current[i]) {
+                    index = i;
+                    break;
+                }
+                //else return;
+            }
+            
+            var cursor = document.createElement('span');
+            cursor.setAttribute('contenteditable', 'true');
+            cursor.style.backgroundColor = 'black';
+            cursor.style.width = '1px';
+            cursor.style.height = '1px';
+            cursor.style.display = 'inline-block'; //setting these props so it shows the cursor in chrome
+            
+            if (this.key != 8) {
+                var front = current.slice(0,index+1);
+                var back = current.slice(index+1);
+            }else{ //if its a delete, we put the cursor behind the index.
+                var front = current.slice(0,index);
+                var back = current.slice(index);
+            }
+            
+            while(this.firstChild) { //clear input
+                this.removeChild(this.firstChild);
+            }
+            
+            this.setAttribute('contenteditable', 'false');
+            var con = false //used to continue the back part of a () or @ if needed.
+            
+            function color(str) {
+                //console.log(con);
+                while(str) { //create the colored spans for the back.
+                    var span = document.createElement('span');
+                    span.setAttribute('contenteditable', 'true');
+                    
+                    if (con) { //if were continuing from the front.
+                        switch (con) {
+                            case 'par':
+                                var x = str.match(/[^,\]\\|@]+/)[0];
+                                span.style.color = '#69BA1E';
+                                break;
+                            case 'pitch':
+                                if (str.search(/[,\\|\(\]]+/) != -1) {
+                                }
+                                var x = str.match(/[^,\\|\(\]]+/)[0];
+                                span.style.color = '#D142EB';
+                                break;
+                            case 'com':
+                                var x = str.match(/[^!]!?/)[0];
+                                span.style.color = 'grey';
+                                break;
+                        }
+                        con = false;
+                        if (x=='') return;
+                    }else{ //if not continuing
+                    
+                        var x = str.match(/\d+\.?|[,\\|]|\[|\]|[+-\/\*xX]|^\([^,\]\\|@]*[,\]\\|@]*|^@[^,\\|\(\]]*[,\\|\(\]]?|![^!]*!?|./)[0];
+                        if (x=='') return;
+                        
+                        if (x.search(/^\(\d*[,\]\\|@]*/) != -1) { //open parenthesis
+                            span.style.color = '#69BA1E';
+                            if (x.search(/\([^,\]\\|@]*[,\]\\|@]/) == -1)
+                                con = 'par';
+                            else {
+                                con = false;
+                                x = x.replace(/[,\]\\|@]/g, '');
+                            }
+                        }else if (x.search(/@[^,\\|\(\]]*/) != -1) { //pitch/instr modifier
+                            span.style.color = '#D142EB';
+                            if (x.search(/@[^,\\|\(\]]*[,\\|\(\]]/) == -1)
+                                con = 'pitch';
+                            else {
+                                con = false;
+                                x = x.replace(/[,\\|\(\]]/, '');
+                            }
+                        }else if (x.search(/![^!]*!?/) != -1) { //comment
+                            span.style.color = 'grey';
+                            if (x.search(/![^!]*!/) == -1)
+                                con = 'com';
+                        }else if(x.search(/[,\\|]/) != -1) //delimiters
+                            span.style.color = '#00A3D9';
+                        else if (x.search(/\d+\.?/) != -1) //digits
+                            span.style.color = 'white';
+                        else if (x.search(/\[|\]/) != -1) //brackets
+                            span.style.color = '#69BA1E';
+                        else if (x.search(/[+\-\/\*xX]/) != -1) //operators
+                            span.style.color = '#A8733E';
+                        
+                    }
+                    
+                    span.textContent = x;
+                    _this.beatInput.append(span);
+                    //str = str.replace(/\d+\.?|[,\\|]|\[|\]|+-\/\*xX|\(|@|!/, '');
+                    str = str.slice(x.length);
+                }
+            }
+            
+            color(front);
+            this.appendChild(cursor); //place the cursor position
+            color(back);
+            console.log(index);
+            cursor.focus();
+            this.setAttribute('contenteditable', 'true');
+            this.focus();
+            cursor.innerHTML = '<b></b>';
+            _this.beatInput.old = this.innerHTML.replace(/<.+?>/g, '');
+            _this.beatInput.working = false;
+        });
+        
+        /*this.beatInput = $('<input>').css('width', '137px').css('fontFamily', 'monospace').css('fontSize','1em').attr('type', 'text').change(function() { //the beat input
             if(Metronome.validate(this.value)) {//validate input.
                 this.classList.remove('error');
                 _this.beat = parseBeat(this.value);
@@ -1063,8 +1219,10 @@ window.onload = function() {
             $(_this.beatTxtWidth).text($(_this.beatInput).val());
             $(_this.beatInput).width($(_this.beatTxtWidth).width());
             if ($(_this.beatTxtWidth).width() > $(_this.div).width() -50) $(_this.beatInput).width($(_this.div).width() -50);
-        }).val('1');
-        $('<span>').append('Beat:').append(_this.beatInput).appendTo(_this.div);
+            //_this.inputSlide();
+        }).val('1');*/
+        //this.beatInputWrapper = $('<div>').addClass('beatWrapper').append(_this.beatInput);
+        $('<span>').append('<div style="float:left">Beat:</div>').append(_this.beatInput).appendTo(_this.div);
         
         this.pitchInput = $('<input>').attr('type', 'text').css( //the beep frequency
             'width', '25px').attr('value', initFreq).change(function() {
@@ -1379,7 +1537,8 @@ window.onload = function() {
             var orig = beat[i]
             var nome = new Metronome()
             metronomes.push(nome);
-            nome.beatInput.val(orig.beat).triggerHandler('change');
+            //nome.beatInput.val(orig.beat).triggerHandler('change');
+            nome.beatInput.val(orig.beat).triggerHandler('input');
             nome.instrInput.val(orig.instr||'pitch').triggerHandler('change');
             nome.pitchInput.val(orig.pitch).triggerHandler('change');
             nome.gainInput.val(orig.gain).triggerHandler('change');
@@ -1407,6 +1566,80 @@ window.onload = function() {
         
         //this.valve.gain.value = 0;
     }
+    
+    Metronome.prototype.inputSlide = function() {
+        if(this.beatInput.slider === undefined) { //initialize coords.
+            var x = this.beatInput.slider = [];
+            x[0] = x[2] = this.beatInput.parent().offset().left;
+            x[1] = x[3] = this.beatInput.parent().offset().top;
+            x[4] = this.beatInput.parent().get(0);
+            x = this.instrInput.slider = [];
+            x[0] = x[2] = this.instrInput.parent().offset().left;
+            x[1] = x[3] = this.instrInput.parent().offset().top;
+            x[4] = this.instrInput.parent().get(0);
+            x = this.gainInput.slider = [];
+            x[0] = x[2] = this.gainInput.parent().offset().left;
+            x[1] = x[3] = this.gainInput.parent().offset().top;
+            x[4] = this.gainInput.parent().get(0);
+            x = this.offsetInput.slider = [];
+            x[0] = x[2] = this.offsetInput.parent().offset().left;
+            x[1] = x[3] = this.offsetInput.parent().offset().top;
+            x[4] = this.offsetInput.parent().get(0);
+        }
+        var all = [this.beatInput.slider,this.instrInput.slider,this.gainInput.slider,this.offsetInput.slider];
+        //key:
+        //all->[0-beat old x, 1-old y, 2-new x, 3-new y, 4-ele, 5-offX, 6-incX, 7-offY, 8-incY, 9-counter]
+        for(var t in all) { //set Current position
+            if (all[t][4].style.position == 'relative') continue;
+            all[t][2] = $(all[t][4]).offset().left;
+            all[t][3] = $(all[t][4]).offset().top;
+        }
+        /*console.log(all.every(function(x){return (x[1] !== x[3]);}));
+        if(all.every(function(x){
+            console.log(x[1]+' '+x[3]);
+            return (x[1] != x[3]);})) {
+            
+            return;
+        }*/
+        if(!(all.every(function(x){return Math.abs(x[1]-x[3])>5})) &&
+            Math.abs(all[1][1] - all[1][3])>5|| //if vertical position has changed
+            Math.abs(all[2][1] - all[2][3])>5||
+            Math.abs(all[3][1] - all[3][3])>5) {
+
+            for(var i in all) {
+                if (all[i][4].style.position == 'relative') {
+                    continue;
+                }
+                all[i][5] = all[i][0] - all[i][2];
+                all[i][6] = all[i][5]/16;
+                all[i][7] = all[i][1] - all[i][3];
+                all[i][8] = all[i][7]/16;
+                all[i][4].style.position = 'relative';
+                all[i][4].style.left = all[i][5] + 'px';
+                all[i][4].style.top = all[i][7] + 'px';
+                all[i][9] = 0;
+                function move(i) {
+                    if (all[i][9] === 16) {
+                        all[i][4].style.position = 'static';
+                        all[i][4].style.left = '0px';
+                        all[i][4].style.top = '0px';
+                        all[i][0] = all[i][2];
+                        all[i][1] = all[i][3];
+                        return;
+                    }else all[i][9]++;
+                    all[i][5] -= all[i][6];
+                    all[i][7] -= all[i][8];
+                    all[i][4].style.left = all[i][5] + 'px';
+                    all[i][4].style.top = all[i][7] + 'px';
+                    //setTimeout(function() {
+                        requestAnimationFrame(function(){move(i);});
+                    //}, 14);
+                }
+                move(i);
+            }
+        }
+    }
+    
     
     Metronome.prototype.visualizer = function() { //creates the visual pulse effect
         var div = this.div.get(0); //avoid using any jquery methods within an animation.
