@@ -1081,17 +1081,20 @@ window.onload = function() {
         this.beatInput.working = false;
         this.beatInput.get(0).addEventListener('blur', function(e) { //parse beat on blur
             if (!_this.beatInput.working) {
+                _this.colorBeat(this, true);
                 if(Metronome.validate(this.value())) {
                     this.classList.remove('error');
                     _this.beat = parseBeat(this.value());
+                    console.log(_this.beat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0));
                 }
                 else this.classList.add('error');
             }
-            if (mobile) _this.colorBeat(this);
         }, false);
         
         this.beatInput.on('keydown', function(e) { //captures the keycode. used for deleting.
             this.key = e.keyCode;
+            if(e.keyCode === 13)
+                e.preventDefault();
         });
         
         this.beatInput.old = this.beatInput.html().replace(/<.+?>/g, ''); //holds the 'old' beat value, used to find the point of change.
@@ -1436,6 +1439,10 @@ window.onload = function() {
             metronomes.push(nome);
             //nome.beatInput.val(orig.beat).triggerHandler('change');
             nome.beatInput.val(orig.beat).triggerHandler('input');
+            if(mobile) {
+                nome.beatInput.get(0).focus();
+                nome.beatInput.get(0).blur();
+            }
             nome.instrInput.val(orig.instr||'pitch').triggerHandler('change');
             nome.pitchInput.val(orig.pitch).triggerHandler('change');
             nome.gainInput.val(orig.gain).triggerHandler('change');
@@ -1464,19 +1471,71 @@ window.onload = function() {
         //this.valve.gain.value = 0;
     }
     
-    Metronome.prototype.colorBeat = function(ele) { //colors the beat syntax of 'ele'.
+    Metronome.prototype.colorBeat = function(ele,sel) { //colors the beat syntax of 'ele'. if sel, don't place the cursor.
+        /*if(ele.key === 13) {
+            ele.innerHTML += '<br />';
+            this.beatInput.old = ele.innerHTML;
+            ele.key = 1;
+            return;
+        }*/
+        //console.log(window.getSelection());
+        
         this.beatInput.working = true; //prevent beat from being validated while editing.
-        var old = this.beatInput.old;
+        var old = this.beatInput.old.replace(/<.+?>/g, '');
         var current = ele.innerHTML.replace(/<.+?>/g, '');
         current = current.replace(/&.+?;/g, ''); //strip html
-
-        if(old === current) return; //if nothing changed, exit.
-
+        //var scroll = ele.scrollLeft;
+        
+        if(old === current && ele.key === 8) { //if the 'cursor' span was what was deleted
+            var replace = this.beatInput.old.replace(/<[^>]*?width.*?><\/span>/, '&');
+            replace = replace.replace(/<.+?>/g, '');
+            var i = replace.indexOf('&'); //use the dummy character to get the index.
+            replace = replace.slice(0,i-1) + replace.slice(i+1); //delete what should have been deleted.
+            this.beatInput.old = ele.innerHTML;
+            current = replace;
+        }else if(old === current && !sel) return; //if nothing changed, exit.
+        else if(ele.key === 8) { //exit for a delete, avoids some bugs...
+            this.beatInput.old = ele.innerHTML;
+            this.beatInput.working = false;
+            ele.key = 7;
+            return;
+        }
+        
         var index = old.length;
-        for (var i=0; i<old.length; i++) { //check if the new value is different than old and set the index of change.
-            if(old[i] !== current[i]) {
-                index = i;
-                break;
+        if(i != undefined) index = i-1; //if 'cursor' was deleted, we know the correct index already.
+        else{
+            for (var i=0; i<old.length; i++) { //check if the new value is different than old and set the index of change.
+                if(old[i] !== current[i]) {
+                    index = i;
+                    break;
+                }
+            }
+        }
+        /*
+        if (i !=undefined) index = i-1;
+        else{
+            for (var i=0; i<this.beatInput.old.length; i++) {
+                if(this.beatInput.old[i] !== ele.innerHTML[i]) {
+                    var index = ele.innerHTML.lastIndexOf('<',i);
+                    var front = ele.innerHTML.slice(index,i+1).replace(/<.+?>/, '');
+                    var back = ele.innerHTML.slice(i+1).replace(/<.+?>/g,'');
+                    ele.innerHTML = ele.innerHTML.slice(0,index);
+                    break;
+                }
+            }
+        }*/
+        
+        
+        if ((current.slice(0,index+1)).search(/(.)\1+$/) != -1 && ele.key !== 8) { //escape repeated characters, bug.
+            if(ele.innerHTML.search(/<[^>]*?width.*?>.<\/span>/) != -1 && (navigator.userAgent.indexOf('hrome') == -1)) { //if the repeated character was placed inside the 'cursor'
+                var replace = ele.innerHTML.replace(/<[^>]*?width.*?>(.)<\/span>/,'&$1');
+                replace = replace.replace(/<.+?>/g, '');
+                index = replace.indexOf('&'); //we can get the correct index, and do not escape.
+                
+            }else{
+                this.beatInput.old = ele.innerHTML;
+                this.beatInput.working = false;
+                return;
             }
         }
 
@@ -1487,7 +1546,7 @@ window.onload = function() {
         cursor.style.height = '1px';
         cursor.style.display = 'inline-block'; //setting these props so it shows the cursor in chrome
         cursor.style.marginTop = '0px';
-
+        
         if (ele.key != 8) { //key pressed was a 'delete'
             var front = current.slice(0,index+1);
             var back = current.slice(index+1);
@@ -1495,11 +1554,12 @@ window.onload = function() {
             var front = current.slice(0,index);
             var back = current.slice(index);
         }
-
+        /*
         while(ele.firstChild) { //clear input spans
             ele.removeChild(ele.firstChild);
-        }
-
+        }*/
+        ele.innerHTML = '';
+        
         ele.setAttribute('contenteditable', 'false');
         var con = false //used to continue the back part of a () or @ if needed.
 
@@ -1509,23 +1569,24 @@ window.onload = function() {
                 span.setAttribute('contenteditable', 'true');
 
                 if (con) { //if were continuing an incomplete element.
+                    var x;
                     switch (con) {
                         case 'par':
-                            var x = str.match(/^[^,\]\\|@]+/)?str.match(/^[^,\]\\|@]+/)[0]:''; //parenthesis and modifier expression
+                            if(x = str.match(/^[^,\]\\|@]+/)) x = x[0]; //parenthesis and modifier expression
                             span.style.color = '#69BA1E';
                             break;
                         case 'pitch': //pitch/intr selection
-                            var x = str.match(/^[^,\\|\(\]]+/)?str.match(/^[^,\\|\(\]]+/)[0]:'';
+                            if(x = str.match(/^[^,\\|\(\]]+/)) x = x[0];
                             span.style.color = '#D142EB';
                             break;
                         case 'com': //comments
-                            var x = str.match(/^[^!]*!?/)?str.match(/^[^!]*!?/)[0]:''; 
+                            if(x = str.match(/^[^!]*!?/)) x = x[0]; 
                             span.style.color = 'grey';
                             if (str.search(/^!/) != -1) //if ! is first (closing a comment), we catch it
                                 x = str.match(/^!/)[0];
                             break;
                         case 'brace': //closing brace. catches the 'n' modifier.
-                            var x = str.match(/^[^,\\|\(\]]+/)?str.match(/^[^,\\|\(\]]+/)[0]:'';
+                            if(x = str.match(/^[^,\\|\(\]]+/)) x = x[0];
                             span.style.color = '#69BA1E';
                             break;
                     }
@@ -1535,65 +1596,84 @@ window.onload = function() {
 
                     var x = str.match(/\.?\d+\.?|^[,\\|]|\[|\][^,\\|\(\]]*[,\\|\(\]]?|[+-\/\*xX]|^\([^,\]\\|@]*[,\]\\|@]*|^@[^,\\|\(\]]*[,\\|\(\]]?|![^!]*!?|./)[0];
                     //^^^ all valid syntax entries.
-                    if (x=='') return;
+                    //if (x=='') return;
+                    var x;
 
-                    if (x.search(/^\(\d*[,\]\\|@]*/) != -1) { //open parenthesis
+                    if (x = str.match(/^\([^,\]\\|@]*[,\]\\|@]*/)) { //open parenthesis
                         span.style.color = '#69BA1E';
+                        var x = x[0];
                         if (x.search(/\([^,\]\\|@]*[,\]\\|@]/) == -1)
                             con = 'par';
                         else {
                             con = false;
                             x = x.replace(/[,\]\\|@]/g, '');
                         }
-                    }else if (x.search(/@[^,\\|\(\]]*/) != -1) { //pitch/instr modifier
+                    }else if (x = str.match(/^@[^,\\|\(\]]*[,\\|\(\]]?/)) { //pitch/instr modifier
                         span.style.color = '#D142EB';
+                        var x = x[0];
                         if (x.search(/@[^,\\|\(\]]*[,\\|\(\]]/) == -1)
                             con = 'pitch';
                         else {
                             con = false;
                             x = x.replace(/[,\\|\(\]]/, '');
                         }
-                    }else if (x.search(/\][^,\\|\(\]]*/) != -1) {
+                    }else if (x = str.match(/^\][^,\\|\(\]]*[,\\|\(\]]?/)) { //back brace
                         span.style.color = '#69BA1E';
+                        var x = x[0];
                         if (x.search(/\][^,\\|\(\]]*[,\\|\(\]]/) == -1)
                             con = 'brace';
                         else {
                             con = false;
                             x = x.replace(/[,\\|\(]/, '');
                         }
-                    }else if (x.search(/![^!]*!?/) != -1) { //comment
+                    }else if (x = str.match(/^![^!]*!?/)) { //comment
                         span.style.color = 'grey';
+                        var x = x[0];
                         if (x.search(/![^!]*!/) == -1)
                             con = 'com';
-                    }else if(x.search(/[,\\|]/) != -1) //delimiters
+                    }else if(x = str.match(/^[,\\|]/)) { //delimiters
                         span.style.color = '#00A3D9';
-                    else if (x.search(/\d+\.?/) != -1) //digits
+                        var x = x[0];
+                    }
+                    else if (x = str.match(/^\.?\d+\.?/)) { //digits
                         span.style.color = '#EDEDD5';
-                    else if (x.search(/\[|\]/) != -1) //brackets
+                        var x = x[0];
+                    }
+                    else if (x = str.match(/^\[|\]/)) { //brackets
                         span.style.color = '#69BA1E';
-                    else if (x.search(/[+\-\/\*xX]/) != -1) //operators
+                        var x = x[0];
+                    }
+                    else if (x = str.match(/^[+\-\/\*xX]/)) { //operators
                         span.style.color = '#cc6322'; //#A8733E
+                        var x = x[0];
+                    }else return;
 
                 }
 
                 span.textContent = x;
+                //if(x === ',') {
+                    //span.innerHTML = ',\t';
+                    //span.setAttribute('contenteditable', 'false');
+                //}
                 ele.appendChild(span);
-                //str = str.replace(/\d+\.?|[,\\|]|\[|\]|+-\/\*xX|\(|@|!/, '');
                 str = str.slice(x.length);
             }
         }
 
         color(front);
-        ele.appendChild(cursor); //place the cursor position
+        if(!mobile) ele.appendChild(cursor); //place the cursor position
         color(back);
 
-        if(!mobile) cursor.focus();
+        if(!mobile && sel !== true) cursor.focus();
         ele.setAttribute('contenteditable', 'true');
-        if(!mobile) ele.focus();
-        cursor.innerHTML = '<b></b>';
-        this.beatInput.old = ele.innerHTML.replace(/<.+?>/g, '');
+        if(!mobile && sel !== true) ele.focus();
+        if(navigator.userAgent.indexOf('hrome') != -1) {
+            cursor.innerHTML = '<b></b>';
+            cursor.focus();
+            //cursor.scrollIntoViewIfNeeded(false);
+        }
+        this.beatInput.old = ele.innerHTML;//current;//ele.innerHTML.replace(/<.+?>/g, '');
         this.beatInput.working = false;
-        //this.inputSlide();
     }
     
     Metronome.prototype.inputSlide = function() {

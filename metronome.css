@@ -102,13 +102,13 @@ button {
     padding-right: 5px;
     border-radius: 3px;
     background-color: #292929;
-    font-family: monospace;
+    font-family: courier new;
     display: inline-block;
     min-width: 100px;
     min-height: 1.2em;
     color: #EDEDD5;
     text-align: left;
-    font-size: 1.2em;
+    font-size: 1em;
     overflow: auto;
     max-width: 400px;
     margin-bottom: -5px;
