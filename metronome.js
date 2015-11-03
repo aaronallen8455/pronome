@@ -135,7 +135,8 @@ window.onload = function() {
     }
     
     document.addEventListener('keydown', function(e) { //give space bar start/stop action.
-        if (e.keyCode === 32 && String(document.activeElement).slice(8,-1) !== 'HTMLInputElement'){
+        if (e.keyCode === 32 && String(document.activeElement).slice(8,-1) !== 'HTMLInputElement' &&
+           document.activeElement.className.indexOf('beat') === -1){
             if (started) stop();
             else start();
         }
@@ -1057,7 +1058,7 @@ window.onload = function() {
             fontFamily: 'monospace',
             fontSize: '1em'
         }}).appendTo(document.body);*/
-        this.beatInput = $('<div>').css('maxWidth',this.div.width()-60).addClass('beat').attr('contenteditable', 'true').append( //holds the colored span elements
+        this.beatInput = $('<div>').css('maxWidth',this.div.width()-60).addClass('beat').attr('spellcheck', 'false').attr('contenteditable', 'true').append( //holds the colored span elements
             
                 $('<span>').html(1).attr('contenteditable', 'true')
             
@@ -1089,12 +1090,14 @@ window.onload = function() {
             this.key = e.keyCode;
         });
         
-        this.beatInput.old = this.beatInput.html().replace(/<.+?>/g, '');
+        this.beatInput.old = this.beatInput.html().replace(/<.+?>/g, ''); //holds the 'old' beat value, used to find the point of change.
         this.beatInput.on('input', function() { //color the input
-            _this.beatInput.working = true;
+            _this.beatInput.working = true; //prevent beat from being validated while editing.
             var old = _this.beatInput.old;
             var current = this.innerHTML.replace(/<.+?>/g, '');
-            current = current.replace(/&.+?;/g, '');
+            current = current.replace(/&.+?;/g, ''); //strip html
+            
+            if(old === current) return; //if nothing changed, exit.
             
             var index = old.length;
             for (var i=0; i<old.length; i++) { //check if the new value is different than old and set the index of change.
@@ -1102,59 +1105,62 @@ window.onload = function() {
                     index = i;
                     break;
                 }
-                //else return;
             }
             
-            var cursor = document.createElement('span');
+            var cursor = document.createElement('span'); //used to position the cursor after the beat is 'rebuilt'
             cursor.setAttribute('contenteditable', 'true');
-            cursor.style.backgroundColor = 'black';
+            cursor.style.backgroundColor = '#292929';
             cursor.style.width = '1px';
-            cursor.style.height = '1px';
+            cursor.style.height = '13px';
             cursor.style.display = 'inline-block'; //setting these props so it shows the cursor in chrome
             
-            if (this.key != 8) {
+            if (this.key != 8) { //key pressed was a 'delete'
                 var front = current.slice(0,index+1);
                 var back = current.slice(index+1);
-            }else{ //if its a delete, we put the cursor behind the index.
+            }else{ //if its a delete, we put the cursor behind the point of change.
                 var front = current.slice(0,index);
                 var back = current.slice(index);
             }
             
-            while(this.firstChild) { //clear input
+            while(this.firstChild) { //clear input spans
                 this.removeChild(this.firstChild);
             }
             
             this.setAttribute('contenteditable', 'false');
             var con = false //used to continue the back part of a () or @ if needed.
             
-            function color(str) {
-                //console.log(con);
-                while(str) { //create the colored spans for the back.
+            function color(str) { //adds the colored spans to the input element.
+                while(str) { //process the str.
                     var span = document.createElement('span');
                     span.setAttribute('contenteditable', 'true');
                     
-                    if (con) { //if were continuing from the front.
+                    if (con) { //if were continuing an incomplete element.
                         switch (con) {
                             case 'par':
-                                var x = str.match(/[^,\]\\|@]+/)[0];
+                                var x = str.match(/^[^,\]\\|@]+/)?str.match(/^[^,\]\\|@]+/)[0]:''; //parenthesis and modifier expression
                                 span.style.color = '#69BA1E';
                                 break;
-                            case 'pitch':
-                                if (str.search(/[,\\|\(\]]+/) != -1) {
-                                }
-                                var x = str.match(/[^,\\|\(\]]+/)[0];
+                            case 'pitch': //pitch/intr selection
+                                var x = str.match(/^[^,\\|\(\]]+/)?str.match(/^[^,\\|\(\]]+/)[0]:'';
                                 span.style.color = '#D142EB';
                                 break;
-                            case 'com':
-                                var x = str.match(/[^!]!?/)[0];
+                            case 'com': //comments
+                                var x = str.match(/^[^!]*!?/)?str.match(/^[^!]*!?/)[0]:''; 
                                 span.style.color = 'grey';
+                                if (str.search(/^!/) != -1) //if ! is first (closing a comment), we catch it
+                                    x = str.match(/^!/)[0];
+                                break;
+                            case 'brace': //closing brace. catches the 'n' modifier.
+                                var x = str.match(/^[^,\\|\(\]]+/)?str.match(/^[^,\\|\(\]]+/)[0]:'';
+                                span.style.color = '#69BA1E';
                                 break;
                         }
                         con = false;
-                        if (x=='') return;
+                        //if (x=='') return;
                     }else{ //if not continuing
                     
-                        var x = str.match(/\d+\.?|[,\\|]|\[|\]|[+-\/\*xX]|^\([^,\]\\|@]*[,\]\\|@]*|^@[^,\\|\(\]]*[,\\|\(\]]?|![^!]*!?|./)[0];
+                        var x = str.match(/\.?\d+\.?|^[,\\|]|\[|\][^,\\|\(\]]*[,\\|\(\]]?|[+-\/\*xX]|^\([^,\]\\|@]*[,\]\\|@]*|^@[^,\\|\(\]]*[,\\|\(\]]?|![^!]*!?|./)[0];
+                        //^^^ all valid syntax entries.
                         if (x=='') return;
                         
                         if (x.search(/^\(\d*[,\]\\|@]*/) != -1) { //open parenthesis
@@ -1173,6 +1179,14 @@ window.onload = function() {
                                 con = false;
                                 x = x.replace(/[,\\|\(\]]/, '');
                             }
+                        }else if (x.search(/\][^,\\|\(\]]*/) != -1) {
+                            span.style.color = '#69BA1E';
+                            if (x.search(/\][^,\\|\(\]]*[,\\|\(\]]/) == -1)
+                                con = 'brace';
+                            else {
+                                con = false;
+                                x = x.replace(/[,\\|\(]/, '');
+                            }
                         }else if (x.search(/![^!]*!?/) != -1) { //comment
                             span.style.color = 'grey';
                             if (x.search(/![^!]*!/) == -1)
@@ -1180,11 +1194,11 @@ window.onload = function() {
                         }else if(x.search(/[,\\|]/) != -1) //delimiters
                             span.style.color = '#00A3D9';
                         else if (x.search(/\d+\.?/) != -1) //digits
-                            span.style.color = 'white';
+                            span.style.color = '#EDEDD5';
                         else if (x.search(/\[|\]/) != -1) //brackets
                             span.style.color = '#69BA1E';
                         else if (x.search(/[+\-\/\*xX]/) != -1) //operators
-                            span.style.color = '#A8733E';
+                            span.style.color = '#cc6322'; //#A8733E
                         
                     }
                     
@@ -1198,11 +1212,11 @@ window.onload = function() {
             color(front);
             this.appendChild(cursor); //place the cursor position
             color(back);
-            console.log(index);
+            
             cursor.focus();
             this.setAttribute('contenteditable', 'true');
             this.focus();
-            cursor.innerHTML = '<b></b>';
+            //cursor.innerHTML = '<b></b>';
             _this.beatInput.old = this.innerHTML.replace(/<.+?>/g, '');
             _this.beatInput.working = false;
         });
