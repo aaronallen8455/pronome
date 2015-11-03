@@ -541,7 +541,10 @@ window.onload = function() {
             top: controlWrap.offsetHeight,
             width: controlWrap.offsetWidth -8.5
         });
-        metronomes.forEach(function(x){x.beatInput.css('maxWidth',x.div.width()-60);});
+        metronomes.forEach(function(x){
+            x.beatInput.css('maxWidth',x.div.width()-60);
+            x.inputSlide();
+        });
         //metronomes.forEach(function(x) { x.beatInput.trigger('input') }); //resize the beat input if needed.
     };
     
@@ -1113,6 +1116,7 @@ window.onload = function() {
             cursor.style.width = '1px';
             cursor.style.height = '13px';
             cursor.style.display = 'inline-block'; //setting these props so it shows the cursor in chrome
+            cursor.style.marginTop = '0px';
             
             if (this.key != 8) { //key pressed was a 'delete'
                 var front = current.slice(0,index+1);
@@ -1219,6 +1223,7 @@ window.onload = function() {
             //cursor.innerHTML = '<b></b>';
             _this.beatInput.old = this.innerHTML.replace(/<.+?>/g, '');
             _this.beatInput.working = false;
+            _this.inputSlide();
         });
         
         /*this.beatInput = $('<input>').css('width', '137px').css('fontFamily', 'monospace').css('fontSize','1em').attr('type', 'text').change(function() { //the beat input
@@ -1584,41 +1589,40 @@ window.onload = function() {
     Metronome.prototype.inputSlide = function() {
         if(this.beatInput.slider === undefined) { //initialize coords.
             var x = this.beatInput.slider = [];
-            x[0] = x[2] = this.beatInput.parent().offset().left;
-            x[1] = x[3] = this.beatInput.parent().offset().top;
+            
             x[4] = this.beatInput.parent().get(0);
+            x[0] = x[2] = x[4].offsetLeft;
+            x[1] = x[3] = x[4].offsetTop;
             x = this.instrInput.slider = [];
-            x[0] = x[2] = this.instrInput.parent().offset().left;
-            x[1] = x[3] = this.instrInput.parent().offset().top;
             x[4] = this.instrInput.parent().get(0);
+            x[0] = x[2] = x[4].offsetLeft;
+            x[1] = x[3] = x[4].offsetTop;
+            
             x = this.gainInput.slider = [];
-            x[0] = x[2] = this.gainInput.parent().offset().left;
-            x[1] = x[3] = this.gainInput.parent().offset().top;
             x[4] = this.gainInput.parent().get(0);
+            x[0] = x[2] = x[4].offsetLeft;
+            x[1] = x[3] = x[4].offsetHeight;
+            
             x = this.offsetInput.slider = [];
-            x[0] = x[2] = this.offsetInput.parent().offset().left;
-            x[1] = x[3] = this.offsetInput.parent().offset().top;
             x[4] = this.offsetInput.parent().get(0);
+            x[0] = x[2] = x[4].offsetLeft;
+            x[1] = x[3] = x[4].offsetHeight;
+            
         }
         var all = [this.beatInput.slider,this.instrInput.slider,this.gainInput.slider,this.offsetInput.slider];
+        
         //key:
         //all->[0-beat old x, 1-old y, 2-new x, 3-new y, 4-ele, 5-offX, 6-incX, 7-offY, 8-incY, 9-counter]
         for(var t in all) { //set Current position
             if (all[t][4].style.position == 'relative') continue;
-            all[t][2] = $(all[t][4]).offset().left;
-            all[t][3] = $(all[t][4]).offset().top;
+            all[t][2] = all[t][4].offsetLeft;
+            all[t][3] = all[t][4].offsetTop;
         }
-        /*console.log(all.every(function(x){return (x[1] !== x[3]);}));
-        if(all.every(function(x){
-            console.log(x[1]+' '+x[3]);
-            return (x[1] != x[3]);})) {
-            
-            return;
-        }*/
-        if(!(all.every(function(x){return Math.abs(x[1]-x[3])>5})) &&
-            Math.abs(all[1][1] - all[1][3])>5|| //if vertical position has changed
-            Math.abs(all[2][1] - all[2][3])>5||
-            Math.abs(all[3][1] - all[3][3])>5) {
+        
+        if(!(all.every(function(x){return Math.abs(x[1]-x[3])>10})) &&
+            Math.abs(all[1][1] - all[1][3])>15|| //if vertical position has changed
+            Math.abs(all[2][1] - all[2][3])>15||
+            Math.abs(all[3][1] - all[3][3])>15) {
 
             for(var i in all) {
                 if (all[i][4].style.position == 'relative') {
@@ -1637,20 +1641,25 @@ window.onload = function() {
                         all[i][4].style.position = 'static';
                         all[i][4].style.left = '0px';
                         all[i][4].style.top = '0px';
-                        all[i][0] = all[i][2];
-                        all[i][1] = all[i][3];
+                        //all[i][0] = all[i][2];
+                        //all[i][1] = all[i][3];
+                        all[i][0] = all[i][2] = all[i][4].offsetLeft;
+                        all[i][1] = all[i][3] = all[i][4].offsetTop;
                         return;
                     }else all[i][9]++;
                     all[i][5] -= all[i][6];
                     all[i][7] -= all[i][8];
                     all[i][4].style.left = all[i][5] + 'px';
                     all[i][4].style.top = all[i][7] + 'px';
-                    //setTimeout(function() {
-                        requestAnimationFrame(function(){move(i);});
-                    //}, 14);
+                    requestAnimationFrame(function(){move(i);});
                 }
                 move(i);
             }
+        }else{
+            all.forEach(function(x){
+                x[0] = x[2] = x[4].offsetLeft;
+                x[1] = x[3] = x[4].offsetTop;
+            });
         }
     }
     
