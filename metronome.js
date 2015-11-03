@@ -1087,6 +1087,7 @@ window.onload = function() {
                 }
                 else this.classList.add('error');
             }
+            if (mobile) _this.colorBeat(this);
         }, false);
         
         this.beatInput.on('keydown', function(e) { //captures the keycode. used for deleting.
@@ -1094,137 +1095,14 @@ window.onload = function() {
         });
         
         this.beatInput.old = this.beatInput.html().replace(/<.+?>/g, ''); //holds the 'old' beat value, used to find the point of change.
-        this.beatInput.on('input', function() { //color the input
-            _this.beatInput.working = true; //prevent beat from being validated while editing.
-            var old = _this.beatInput.old;
-            var current = this.innerHTML.replace(/<.+?>/g, '');
-            current = current.replace(/&.+?;/g, ''); //strip html
-            
-            if(old === current) return; //if nothing changed, exit.
-            
-            var index = old.length;
-            for (var i=0; i<old.length; i++) { //check if the new value is different than old and set the index of change.
-                if(old[i] !== current[i]) {
-                    index = i;
-                    break;
-                }
-            }
-            
-            var cursor = document.createElement('span'); //used to position the cursor after the beat is 'rebuilt'
-            cursor.setAttribute('contenteditable', 'true');
-            cursor.style.backgroundColor = '#292929';
-            cursor.style.width = '1px';
-            cursor.style.height = '13px';
-            cursor.style.display = 'inline-block'; //setting these props so it shows the cursor in chrome
-            cursor.style.marginTop = '0px';
-            
-            if (this.key != 8) { //key pressed was a 'delete'
-                var front = current.slice(0,index+1);
-                var back = current.slice(index+1);
-            }else{ //if its a delete, we put the cursor behind the point of change.
-                var front = current.slice(0,index);
-                var back = current.slice(index);
-            }
-            
-            while(this.firstChild) { //clear input spans
-                this.removeChild(this.firstChild);
-            }
-            
-            this.setAttribute('contenteditable', 'false');
-            var con = false //used to continue the back part of a () or @ if needed.
-            
-            function color(str) { //adds the colored spans to the input element.
-                while(str) { //process the str.
-                    var span = document.createElement('span');
-                    span.setAttribute('contenteditable', 'true');
-                    
-                    if (con) { //if were continuing an incomplete element.
-                        switch (con) {
-                            case 'par':
-                                var x = str.match(/^[^,\]\\|@]+/)?str.match(/^[^,\]\\|@]+/)[0]:''; //parenthesis and modifier expression
-                                span.style.color = '#69BA1E';
-                                break;
-                            case 'pitch': //pitch/intr selection
-                                var x = str.match(/^[^,\\|\(\]]+/)?str.match(/^[^,\\|\(\]]+/)[0]:'';
-                                span.style.color = '#D142EB';
-                                break;
-                            case 'com': //comments
-                                var x = str.match(/^[^!]*!?/)?str.match(/^[^!]*!?/)[0]:''; 
-                                span.style.color = 'grey';
-                                if (str.search(/^!/) != -1) //if ! is first (closing a comment), we catch it
-                                    x = str.match(/^!/)[0];
-                                break;
-                            case 'brace': //closing brace. catches the 'n' modifier.
-                                var x = str.match(/^[^,\\|\(\]]+/)?str.match(/^[^,\\|\(\]]+/)[0]:'';
-                                span.style.color = '#69BA1E';
-                                break;
-                        }
-                        con = false;
-                        //if (x=='') return;
-                    }else{ //if not continuing
-                    
-                        var x = str.match(/\.?\d+\.?|^[,\\|]|\[|\][^,\\|\(\]]*[,\\|\(\]]?|[+-\/\*xX]|^\([^,\]\\|@]*[,\]\\|@]*|^@[^,\\|\(\]]*[,\\|\(\]]?|![^!]*!?|./)[0];
-                        //^^^ all valid syntax entries.
-                        if (x=='') return;
-                        
-                        if (x.search(/^\(\d*[,\]\\|@]*/) != -1) { //open parenthesis
-                            span.style.color = '#69BA1E';
-                            if (x.search(/\([^,\]\\|@]*[,\]\\|@]/) == -1)
-                                con = 'par';
-                            else {
-                                con = false;
-                                x = x.replace(/[,\]\\|@]/g, '');
-                            }
-                        }else if (x.search(/@[^,\\|\(\]]*/) != -1) { //pitch/instr modifier
-                            span.style.color = '#D142EB';
-                            if (x.search(/@[^,\\|\(\]]*[,\\|\(\]]/) == -1)
-                                con = 'pitch';
-                            else {
-                                con = false;
-                                x = x.replace(/[,\\|\(\]]/, '');
-                            }
-                        }else if (x.search(/\][^,\\|\(\]]*/) != -1) {
-                            span.style.color = '#69BA1E';
-                            if (x.search(/\][^,\\|\(\]]*[,\\|\(\]]/) == -1)
-                                con = 'brace';
-                            else {
-                                con = false;
-                                x = x.replace(/[,\\|\(]/, '');
-                            }
-                        }else if (x.search(/![^!]*!?/) != -1) { //comment
-                            span.style.color = 'grey';
-                            if (x.search(/![^!]*!/) == -1)
-                                con = 'com';
-                        }else if(x.search(/[,\\|]/) != -1) //delimiters
-                            span.style.color = '#00A3D9';
-                        else if (x.search(/\d+\.?/) != -1) //digits
-                            span.style.color = '#EDEDD5';
-                        else if (x.search(/\[|\]/) != -1) //brackets
-                            span.style.color = '#69BA1E';
-                        else if (x.search(/[+\-\/\*xX]/) != -1) //operators
-                            span.style.color = '#cc6322'; //#A8733E
-                        
-                    }
-                    
-                    span.textContent = x;
-                    _this.beatInput.append(span);
-                    //str = str.replace(/\d+\.?|[,\\|]|\[|\]|+-\/\*xX|\(|@|!/, '');
-                    str = str.slice(x.length);
-                }
-            }
-            
-            color(front);
-            this.appendChild(cursor); //place the cursor position
-            color(back);
-            
-            cursor.focus();
-            this.setAttribute('contenteditable', 'true');
-            this.focus();
-            //cursor.innerHTML = '<b></b>';
-            _this.beatInput.old = this.innerHTML.replace(/<.+?>/g, '');
-            _this.beatInput.working = false;
-            _this.inputSlide();
-        });
+        if(!mobile)
+            this.beatInput.on('input', function(){
+                _this.colorBeat(this);
+                _this.inputSlide();
+            });// { //color the input
+        else
+            this.beatInput.on('input', function(){_this.inputSlide();});
+           
         
         /*this.beatInput = $('<input>').css('width', '137px').css('fontFamily', 'monospace').css('fontSize','1em').attr('type', 'text').change(function() { //the beat input
             if(Metronome.validate(this.value)) {//validate input.
@@ -1584,6 +1462,138 @@ window.onload = function() {
         this.valve.disconnect(); //a way to stop instr samples.
         
         //this.valve.gain.value = 0;
+    }
+    
+    Metronome.prototype.colorBeat = function(ele) { //colors the beat syntax of 'ele'.
+        this.beatInput.working = true; //prevent beat from being validated while editing.
+        var old = this.beatInput.old;
+        var current = ele.innerHTML.replace(/<.+?>/g, '');
+        current = current.replace(/&.+?;/g, ''); //strip html
+
+        if(old === current) return; //if nothing changed, exit.
+
+        var index = old.length;
+        for (var i=0; i<old.length; i++) { //check if the new value is different than old and set the index of change.
+            if(old[i] !== current[i]) {
+                index = i;
+                break;
+            }
+        }
+
+        var cursor = document.createElement('span'); //used to position the cursor after the beat is 'rebuilt'
+        cursor.setAttribute('contenteditable', 'true');
+        cursor.style.backgroundColor = '#292929';
+        cursor.style.width = '1px';
+        cursor.style.height = '1px';
+        cursor.style.display = 'inline-block'; //setting these props so it shows the cursor in chrome
+        cursor.style.marginTop = '0px';
+
+        if (ele.key != 8) { //key pressed was a 'delete'
+            var front = current.slice(0,index+1);
+            var back = current.slice(index+1);
+        }else{ //if its a delete, we put the cursor behind the point of change.
+            var front = current.slice(0,index);
+            var back = current.slice(index);
+        }
+
+        while(ele.firstChild) { //clear input spans
+            ele.removeChild(ele.firstChild);
+        }
+
+        ele.setAttribute('contenteditable', 'false');
+        var con = false //used to continue the back part of a () or @ if needed.
+
+        function color(str) { //adds the colored spans to the input element.
+            while(str) { //process the str.
+                var span = document.createElement('span');
+                span.setAttribute('contenteditable', 'true');
+
+                if (con) { //if were continuing an incomplete element.
+                    switch (con) {
+                        case 'par':
+                            var x = str.match(/^[^,\]\\|@]+/)?str.match(/^[^,\]\\|@]+/)[0]:''; //parenthesis and modifier expression
+                            span.style.color = '#69BA1E';
+                            break;
+                        case 'pitch': //pitch/intr selection
+                            var x = str.match(/^[^,\\|\(\]]+/)?str.match(/^[^,\\|\(\]]+/)[0]:'';
+                            span.style.color = '#D142EB';
+                            break;
+                        case 'com': //comments
+                            var x = str.match(/^[^!]*!?/)?str.match(/^[^!]*!?/)[0]:''; 
+                            span.style.color = 'grey';
+                            if (str.search(/^!/) != -1) //if ! is first (closing a comment), we catch it
+                                x = str.match(/^!/)[0];
+                            break;
+                        case 'brace': //closing brace. catches the 'n' modifier.
+                            var x = str.match(/^[^,\\|\(\]]+/)?str.match(/^[^,\\|\(\]]+/)[0]:'';
+                            span.style.color = '#69BA1E';
+                            break;
+                    }
+                    con = false;
+                    //if (x=='') return;
+                }else{ //if not continuing
+
+                    var x = str.match(/\.?\d+\.?|^[,\\|]|\[|\][^,\\|\(\]]*[,\\|\(\]]?|[+-\/\*xX]|^\([^,\]\\|@]*[,\]\\|@]*|^@[^,\\|\(\]]*[,\\|\(\]]?|![^!]*!?|./)[0];
+                    //^^^ all valid syntax entries.
+                    if (x=='') return;
+
+                    if (x.search(/^\(\d*[,\]\\|@]*/) != -1) { //open parenthesis
+                        span.style.color = '#69BA1E';
+                        if (x.search(/\([^,\]\\|@]*[,\]\\|@]/) == -1)
+                            con = 'par';
+                        else {
+                            con = false;
+                            x = x.replace(/[,\]\\|@]/g, '');
+                        }
+                    }else if (x.search(/@[^,\\|\(\]]*/) != -1) { //pitch/instr modifier
+                        span.style.color = '#D142EB';
+                        if (x.search(/@[^,\\|\(\]]*[,\\|\(\]]/) == -1)
+                            con = 'pitch';
+                        else {
+                            con = false;
+                            x = x.replace(/[,\\|\(\]]/, '');
+                        }
+                    }else if (x.search(/\][^,\\|\(\]]*/) != -1) {
+                        span.style.color = '#69BA1E';
+                        if (x.search(/\][^,\\|\(\]]*[,\\|\(\]]/) == -1)
+                            con = 'brace';
+                        else {
+                            con = false;
+                            x = x.replace(/[,\\|\(]/, '');
+                        }
+                    }else if (x.search(/![^!]*!?/) != -1) { //comment
+                        span.style.color = 'grey';
+                        if (x.search(/![^!]*!/) == -1)
+                            con = 'com';
+                    }else if(x.search(/[,\\|]/) != -1) //delimiters
+                        span.style.color = '#00A3D9';
+                    else if (x.search(/\d+\.?/) != -1) //digits
+                        span.style.color = '#EDEDD5';
+                    else if (x.search(/\[|\]/) != -1) //brackets
+                        span.style.color = '#69BA1E';
+                    else if (x.search(/[+\-\/\*xX]/) != -1) //operators
+                        span.style.color = '#cc6322'; //#A8733E
+
+                }
+
+                span.textContent = x;
+                ele.appendChild(span);
+                //str = str.replace(/\d+\.?|[,\\|]|\[|\]|+-\/\*xX|\(|@|!/, '');
+                str = str.slice(x.length);
+            }
+        }
+
+        color(front);
+        ele.appendChild(cursor); //place the cursor position
+        color(back);
+
+        if(!mobile) cursor.focus();
+        ele.setAttribute('contenteditable', 'true');
+        if(!mobile) ele.focus();
+        cursor.innerHTML = '<b></b>';
+        this.beatInput.old = ele.innerHTML.replace(/<.+?>/g, '');
+        this.beatInput.working = false;
+        //this.inputSlide();
     }
     
     Metronome.prototype.inputSlide = function() {
