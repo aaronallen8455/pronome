@@ -1079,9 +1079,18 @@ window.onload = function() {
             return _this.beatInput.val();
         }
         this.beatInput.working = false;
+        if(mobile) this.beatInput.blurOff = false;
         this.beatInput.get(0).addEventListener('blur', function(e) { //parse beat on blur
             if (!_this.beatInput.working) {
-                _this.colorBeat(this, true);
+                if (mobile) {
+                    if(!_this.beatInput.blurOff) {
+                        _this.colorBeat(this);
+                        _this.beatInput.blurOff = true;
+                        this.blur();
+                    }else{
+                        _this.beatInput.blurOff = false;
+                    }
+                }
                 if(Metronome.validate(this.value())) {
                     this.classList.remove('error');
                     _this.beat = parseBeat(this.value());
@@ -1472,6 +1481,43 @@ window.onload = function() {
     }
     
     Metronome.prototype.colorBeat = function(ele,sel) { //colors the beat syntax of 'ele'. if sel, don't place the cursor.
+        
+        function getCaret() {
+            var caretOffset = 0;
+            var doc = ele.ownerDocument || ele.document;
+            var win = doc.defaultView || doc.parentWindow;
+            var sel;
+            if (typeof win.getSelection != "undefined") {
+                sel = win.getSelection();
+                if (sel.rangeCount > 0) {
+                    var range = win.getSelection().getRangeAt(0);
+                    var preCaretRange = range.cloneRange();
+                    preCaretRange.selectNodeContents(ele);
+                    preCaretRange.setEnd(range.endContainer, range.endOffset);
+                    caretOffset = preCaretRange.toString().length;
+                }
+            /*} else if ( (sel = doc.selection) && sel.type != "Control") {
+                var textRange = sel.createRange();
+                var preCaretTextRange = doc.body.createTextRange();
+                preCaretTextRange.moveToElementText(element);
+                preCaretTextRange.setEndPoint("EndToEnd", textRange);
+                caretOffset = preCaretTextRange.text.length;*/
+            }
+            //console.log(caretOffset);
+            return caretOffset;
+        }
+        function setCaret(pos, child) {
+            //console.log('ele.children '+ele.children+' '+child +' pos'+pos);
+            var range = document.createRange();
+            var sel = window.getSelection();
+            range.setStart(ele.children[child].childNodes[0], pos);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            ele.focus();
+        }
+        var caret = getCaret();
+        //console.log(caret);
         /*if(ele.key === 13) {
             ele.innerHTML += '<br />';
             this.beatInput.old = ele.innerHTML;
@@ -1485,7 +1531,7 @@ window.onload = function() {
         var current = ele.innerHTML.replace(/<.+?>/g, '');
         current = current.replace(/&.+?;/g, ''); //strip html
         //var scroll = ele.scrollLeft;
-        
+        /*
         if(old === current && ele.key === 8) { //if the 'cursor' span was what was deleted
             var replace = this.beatInput.old.replace(/<[^>]*?width.*?><\/span>/, '&');
             replace = replace.replace(/<.+?>/g, '');
@@ -1499,10 +1545,10 @@ window.onload = function() {
             this.beatInput.working = false;
             ele.key = 7;
             return;
-        }
-        
-        var index = old.length;
-        if(i != undefined) index = i-1; //if 'cursor' was deleted, we know the correct index already.
+        }*/
+        var index = caret;
+        //var index = old.length;
+        /*if(i != undefined) index = i-1; //if 'cursor' was deleted, we know the correct index already.
         else{
             for (var i=0; i<old.length; i++) { //check if the new value is different than old and set the index of change.
                 if(old[i] !== current[i]) {
@@ -1510,7 +1556,7 @@ window.onload = function() {
                     break;
                 }
             }
-        }
+        }*/
         /*
         if (i !=undefined) index = i-1;
         else{
@@ -1525,7 +1571,7 @@ window.onload = function() {
             }
         }*/
         
-        
+        /*
         if ((current.slice(0,index+1)).search(/(.)\1+$/) != -1 && ele.key !== 8) { //escape repeated characters, bug.
             if(ele.innerHTML.search(/<[^>]*?width.*?>.<\/span>/) != -1 && (navigator.userAgent.indexOf('hrome') == -1)) { //if the repeated character was placed inside the 'cursor'
                 var replace = ele.innerHTML.replace(/<[^>]*?width.*?>(.)<\/span>/,'&$1');
@@ -1537,8 +1583,8 @@ window.onload = function() {
                 this.beatInput.working = false;
                 return;
             }
-        }
-
+        }*/
+        /*
         var cursor = document.createElement('span'); //used to position the cursor after the beat is 'rebuilt'
         cursor.setAttribute('contenteditable', 'true');
         cursor.style.backgroundColor = '#292929';
@@ -1546,22 +1592,26 @@ window.onload = function() {
         cursor.style.height = '1px';
         cursor.style.display = 'inline-block'; //setting these props so it shows the cursor in chrome
         cursor.style.marginTop = '0px';
-        
-        if (ele.key != 8) { //key pressed was a 'delete'
+        */
+        /*if (ele.key != 8) { //key pressed was a 'delete'
             var front = current.slice(0,index+1);
             var back = current.slice(index+1);
         }else{ //if its a delete, we put the cursor behind the point of change.
             var front = current.slice(0,index);
             var back = current.slice(index);
-        }
+        }*/
         /*
         while(ele.firstChild) { //clear input spans
             ele.removeChild(ele.firstChild);
         }*/
         ele.innerHTML = '';
+        if (!mobile || sel !== true)
+            current = current.slice(0,index) + '&' + current.slice(index); //& is the carret position.
         
-        ele.setAttribute('contenteditable', 'false');
+        //ele.setAttribute('contenteditable', 'false');
         var con = false //used to continue the back part of a () or @ if needed.
+        var childCount = 0; //the child element that contains the caret
+        var node = false; //the position of the carret within the child element.
 
         function color(str) { //adds the colored spans to the input element.
             while(str) { //process the str.
@@ -1570,6 +1620,7 @@ window.onload = function() {
 
                 if (con) { //if were continuing an incomplete element.
                     var x;
+                    
                     switch (con) {
                         case 'par':
                             if(x = str.match(/^[^,\]\\|@]+/)) x = x[0]; //parenthesis and modifier expression
@@ -1577,6 +1628,9 @@ window.onload = function() {
                             break;
                         case 'pitch': //pitch/intr selection
                             if(x = str.match(/^[^,\\|\(\]]+/)) x = x[0];
+                            //else if(x = str.match(/^,/)) {
+                            //    x = x[0];
+                            //}
                             span.style.color = '#D142EB';
                             break;
                         case 'com': //comments
@@ -1590,28 +1644,49 @@ window.onload = function() {
                             span.style.color = '#69BA1E';
                             break;
                     }
+                    /*
+                    if(x.indexOf('&') != -1) {
+                        node = x.indexOf('&');
+                        str = str.replace(/&/, '');
+                        if(con) {
+                            console.log(x);
+                            if(x[x.length-1] === '&')
+                                childCount++;
+                            else {
+                                childCount++;
+                                console.log('here');
+                            }
+                        x = x.replace(/&/, '');
+                        
+                        }
+                    }*/
+                    
                     con = false;
-                    //if (x=='') return;
+                    if (x==null) continue;
+                    
+                    
                 }else{ //if not continuing
 
-                    var x = str.match(/\.?\d+\.?|^[,\\|]|\[|\][^,\\|\(\]]*[,\\|\(\]]?|[+-\/\*xX]|^\([^,\]\\|@]*[,\]\\|@]*|^@[^,\\|\(\]]*[,\\|\(\]]?|![^!]*!?|./)[0];
+                    //var x = str.match(/\.?\d+\.?|^[,\\|]|\[|\][^,\\|\(\]]*[,\\|\(\]]?|[+-\/\*xX]|^\([^,\]\\|@]*[,\]\\|@]*|^@[^,\\|\(\]]*[,\\|\(\]]?|![^!]*!?|./)[0];
                     //^^^ all valid syntax entries.
                     //if (x=='') return;
+                    
                     var x;
 
-                    if (x = str.match(/^\([^,\]\\|@]*[,\]\\|@]*/)) { //open parenthesis
+                    if (x = str.match(/^\([^,\]\\|@]*[,\]\\|@]*/)) { //open parenthesis (&3
                         span.style.color = '#69BA1E';
                         var x = x[0];
                         if (x.search(/\([^,\]\\|@]*[,\]\\|@]/) == -1)
                             con = 'par';
                         else {
-                            con = false;
+                            con = 'par';
+                            //if(mobile) con = false;
                             x = x.replace(/[,\]\\|@]/g, '');
                         }
                     }else if (x = str.match(/^@[^,\\|\(\]]*[,\\|\(\]]?/)) { //pitch/instr modifier
                         span.style.color = '#D142EB';
                         var x = x[0];
-                        if (x.search(/@[^,\\|\(\]]*[,\\|\(\]]/) == -1)
+                        if (x.search(/^@[^,\\|\(\]]*[,\\|\(\]]/) == -1)
                             con = 'pitch';
                         else {
                             con = false;
@@ -1635,35 +1710,64 @@ window.onload = function() {
                         span.style.color = '#00A3D9';
                         var x = x[0];
                     }
-                    else if (x = str.match(/^\.?\d+\.?/)) { //digits
+                    else if (x = str.match(/^[.\d]+\.?/)) { //digits
                         span.style.color = '#EDEDD5';
                         var x = x[0];
                     }
-                    else if (x = str.match(/^\[|\]/)) { //brackets
+                    else if (x = str.match(/^\[/)) { //brackets
                         span.style.color = '#69BA1E';
                         var x = x[0];
                     }
                     else if (x = str.match(/^[+\-\/\*xX]/)) { //operators
                         span.style.color = '#cc6322'; //#A8733E
                         var x = x[0];
+                    }else if (str.search(/^&/) != -1) {
+                        node = 0;
+                        str = str.replace(/&/, '');
+                        childCount++;
+                        if(str === '') {
+                            childCount--;
+                            node = ele.children[childCount-1].innerHTML.length;
+                        }
+                        continue;
                     }else return;
+                    
+                    if(x.indexOf('&') != -1) {
+                        
+                        node = x.indexOf('&');
+                        str = str.replace(/&/, '');
+                        if(con) {
+                            
+                            if(x[x.length-1] === '&')
+                                childCount++;
+                            else {
+                                childCount++;
+                                
+                            }
+                            x = x.replace(/&/, '');
+                           
+                        }
+                    }
 
                 }
-
+                //console.log('x:'+x+' childCount:'+childCount);
                 span.textContent = x;
                 //if(x === ',') {
                     //span.innerHTML = ',\t';
                     //span.setAttribute('contenteditable', 'false');
                 //}
                 ele.appendChild(span);
+                if(node === false)
+                    childCount++;
                 str = str.slice(x.length);
             }
         }
-
-        color(front);
-        if(!mobile) ele.appendChild(cursor); //place the cursor position
-        color(back);
-
+        if (sel !== true)
+            color(current);
+        //color(front);
+        //if(!mobile) ele.appendChild(cursor); //place the cursor position
+        //color(back);
+        /*
         if(!mobile && sel !== true) cursor.focus();
         ele.setAttribute('contenteditable', 'true');
         if(!mobile && sel !== true) ele.focus();
@@ -1671,7 +1775,9 @@ window.onload = function() {
             cursor.innerHTML = '<b></b>';
             cursor.focus();
             //cursor.scrollIntoViewIfNeeded(false);
-        }
+        }*/
+        if(!mobile || sel !== true)
+            setCaret(node, childCount-1);
         this.beatInput.old = ele.innerHTML;//current;//ele.innerHTML.replace(/<.+?>/g, '');
         this.beatInput.working = false;
     }
