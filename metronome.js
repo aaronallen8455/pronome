@@ -543,7 +543,7 @@ window.onload = function() {
         });
         metronomes.forEach(function(x){
             x.beatInput.css('maxWidth',x.div.width()-60);
-            x.inputSlide();
+            x.inputSlide(false);
         });
         //metronomes.forEach(function(x) { x.beatInput.trigger('input') }); //resize the beat input if needed.
     };
@@ -1689,7 +1689,7 @@ window.onload = function() {
                         if (x.search(/^@[^,\\|\(\]]*[,\\|\(\]]/) == -1)
                             con = 'pitch';
                         else {
-                            con = false;
+                            con = 'pitch';
                             x = x.replace(/[,\\|\(\]]/, '');
                         }
                     }else if (x = str.match(/^\][^,\\|\(\]]*[,\\|\(\]]?/)) { //back brace
@@ -1698,13 +1698,15 @@ window.onload = function() {
                         if (x.search(/\][^,\\|\(\]]*[,\\|\(\]]/) == -1)
                             con = 'brace';
                         else {
-                            con = false;
+                            con = 'brace';
                             x = x.replace(/[,\\|\(]/, '');
                         }
                     }else if (x = str.match(/^![^!]*!?/)) { //comment
                         span.style.color = 'grey';
                         var x = x[0];
                         if (x.search(/![^!]*!/) == -1)
+                            con = 'com';
+                        else if (x.indexOf('&') != -1)
                             con = 'com';
                     }else if(x = str.match(/^[,\\|]/)) { //delimiters
                         span.style.color = '#00A3D9';
@@ -1738,13 +1740,14 @@ window.onload = function() {
                         str = str.replace(/&/, '');
                         if(con) {
                             
-                            if(x[x.length-1] === '&')
+                            //if(x[x.length-1] === '&')
+                            //    childCount++;
+                            //else {
                                 childCount++;
-                            else {
-                                childCount++;
-                                
-                            }
+                                //if(con === 'com' && (x.indexOf('&') != 0||x.length-1))
+                            //}
                             x = x.replace(/&/, '');
+                        
                            
                         }
                     }
@@ -1782,13 +1785,15 @@ window.onload = function() {
         this.beatInput.working = false;
     }
     
-    Metronome.prototype.inputSlide = function() {
-        if(this.beatInput.slider === undefined) { //initialize coords.
+    Metronome.prototype.inputSlide = function(slide) {
+        if(slide === undefined) slide = true;
+        
+        if(this.beatInput.slider === undefined || !slide) { //initialize coords.
             var x = this.beatInput.slider = [];
-            
             x[4] = this.beatInput.parent().get(0);
             x[0] = x[2] = x[4].offsetLeft;
             x[1] = x[3] = x[4].offsetTop;
+            
             x = this.instrInput.slider = [];
             x[4] = this.instrInput.parent().get(0);
             x[0] = x[2] = x[4].offsetLeft;
@@ -1797,14 +1802,17 @@ window.onload = function() {
             x = this.gainInput.slider = [];
             x[4] = this.gainInput.parent().get(0);
             x[0] = x[2] = x[4].offsetLeft;
-            x[1] = x[3] = x[4].offsetHeight;
+            x[1] = x[3] = x[4].offsetTop;
             
             x = this.offsetInput.slider = [];
             x[4] = this.offsetInput.parent().get(0);
             x[0] = x[2] = x[4].offsetLeft;
-            x[1] = x[3] = x[4].offsetHeight;
+            x[1] = x[3] = x[4].offsetTop;
             
+            if(!slide) //if slide is false, we don't animate, just update element coordinates.
+                return;
         }
+        
         var all = [this.beatInput.slider,this.instrInput.slider,this.gainInput.slider,this.offsetInput.slider];
         
         //key:
