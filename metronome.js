@@ -51,6 +51,18 @@ window.onload = function() {
         );//create a div window with the instructions and buttons to close the window.
     });
     
+    var loginButton = $('<button>', {text: '[log-in]'}).addClass('loginButton').appendTo(mets).click(logIn);
+    function logIn() {
+        msg('Enter your e-mail and password to access your account.', 'login', 'Log In', 'true', yes);
+        function yes(c) {
+            user = new User(c[0], c[1]) //log the user in
+        }
+    }
+    function logOut() {
+        msg('You have logged out.',false,true,false);
+        loginButton.unbind('click',logOut).click(logIn).text('[log-in]');
+        user.logOut();
+    }
     
     newButton.onclick = function() {
         metronomes.push(new Metronome); //initiate a new Metronome
@@ -261,6 +273,110 @@ window.onload = function() {
     ].sort();
     InstrSamp.played = new Array(40); //holds most recent buffersources for easy stopping.
     InstrSamp.hiHatSrc = new Array(4); //holds hihat sounds to be stopped when hihat pedal down occurs.
+    
+    var user = undefined;
+    function User(email, pw) { //Created when a user logs in successfully.
+        this.email = email;
+        this.password = pw;
+        this.beat = {}; //beats are stored as name: 'jsoned beat'
+        this.isAuthorized = false;
+        /*if (this.login()) //check credentials.
+            this.isAuthorized = true;
+        else delete this; //login failed, delete user obj*/
+        this.getBeat()
+    }
+    
+    User.prototype.getBeat = function() { //download the beat json
+        var _this = this;
+        var c = {email: this.email, pass: this.password, type: 'getBeat'};
+        c = JSON.stringify(c);
+        var req = new XMLHttpRequest();
+        req.open('POST','pro.php',true);
+        req.setRequestHeader('Content-type', 'application/json');
+        //req.responseType = 'json';
+        req.onreadystatechange = function() {
+            if(req.readyState === 4) {
+                var result = req.responseText;
+                
+                if(result === 'fail') {
+                    function yes() {
+                        loginButton.trigger('click');
+                    }
+                    msg('Incorrect email or password.', false, 'Try Again',true,yes);
+                    user = false;
+                    return;
+                }
+                if(result == '' || result === '{}') result = null;
+                result = JSON.parse(result);
+                if(result == null) { //if the account has no beats, we import local beats.
+                    for(var i=0; i<localStorage.length; i++) {
+                        var name = localStorage.key(i);
+                        _this.beat[name] = localStorage.getItem(name);
+                    }
+                    if (Object.keys(_this.beat).length != 0)
+                        _this.setBeat();
+                }
+                _this.syncBeat(result);
+                msg('Logged in as \''+user.email+'\'', false, true, false);
+                loginButton.text('[log-out]').unbind('click',logIn).click(logOut);
+            }
+        };
+        req.send(c);
+    }
+    
+    User.prototype.setBeat = function() { //replace beat json in DB with current one
+        var c = {'email': this.email, 'pass': this.password, 'beat': JSON.stringify(this.beat), 'type': 'setBeat'};
+        var req = new XMLHttpRequest();
+        req.open('POST','pro.php',true);
+        req.setRequestHeader('Content-type', 'application/json');
+        req.onreadystatechange = function() {
+            if(req.readyState === 4) {
+                var result = req.responseText;
+                if(result === 'fail') {
+                    console.log('Failed to upload beat to database.');
+                    return false;
+                }
+                else {
+                    console.log('Beat successfully uploaded.');
+                    return true;
+                }
+            }
+        };
+        req.send(JSON.stringify(c));
+    }
+    
+    User.prototype.syncBeat = function(dlBeat) { //sync client with the database.
+        
+        for (var p in dlBeat) {
+            this.beat[p] = dlBeat[p];
+        }
+        updateSaved();
+    }
+    
+    User.prototype.logOut = function() {
+        user = false;
+        updateSaved();
+    }
+    
+    /*
+    User.prototype.login = function() { //check login credentials.
+        var c = {'email': this.email, 'pass': this.password, 'type': 'login'};
+        var req = new XMLHttpRequest();
+        req.open('POST','pro.php',true);
+        req.setRequestHeader('Content-type', 'application/json');
+        req.onreadystatechange = function() {
+            if(req.readyState === 4) {
+                var result = req.responseText;
+                if(result === 'fail') {
+                    return false;
+                }
+                else {
+                    return true;
+                }
+            }
+        };
+        req.send(JSON.stringify(c));
+    }*/
     
     
     tempoInput.onchange = function() {
@@ -564,10 +680,10 @@ window.onload = function() {
         var pass;
         if (inputField)
             _div.children(0).append('<br /><br />');
-        if (inputField === 'createAcct') { //if were creating an account.
+        if (inputField === 'login') { //if were creating an account.
             var p = $('<p>').appendTo(_div.children(0)).css('textAlign', 'left').css('padding-left', '20px');
             p.append('E-mail:<br />');
-            email = $('<input>').attr('type', 'text').appendTo(p);
+            email = $('<input>').attr('type', 'text').appendTo(p).focus();
             p.append('<br />');
             p.append('Password:<br />');
             pass = $('<input>').attr('type', 'password').appendTo(p);
@@ -632,20 +748,37 @@ window.onload = function() {
     var savedBeats = $('<select>', {css: { width: 165, marginBottom: '3px'}}); //holds the saved beats.
     
     function updateSaved() { //update the list of saved beats. order them alphabetically.
-        if (localStorage.length === 0) {
-            savedBeats.empty().append(
-            $('<option>').attr('value', 'none').html('<i>(No Saved Beats)</i>')
-            );
-        }else{
-            savedBeats.empty().append(
-            $('<option>').attr('value', 'none').html('<i>Select a Saved Beat:</i>')
-            );
-        }
-        for (var i=0; i<localStorage.length; i++) {
-            var name = localStorage.key(i);
-            savedBeats.append(
-                $('<option>').attr('value', name).text(name)
-            );
+        if(!user) { //if we're using local storage.
+            if (localStorage.length === 0) {
+                savedBeats.empty().append(
+                $('<option>').attr('value', 'none').html('<i>(No Saved Beats)</i>')
+                );
+            }else{
+                savedBeats.empty().append(
+                $('<option>').attr('value', 'none').html('<i>Select a Saved Beat:</i>')
+                );
+            }
+            for (var i=0; i<localStorage.length; i++) {
+                var name = localStorage.key(i);
+                savedBeats.append(
+                    $('<option>').attr('value', name).text(name)
+                );
+            }
+        }else{ //if we're using the db.
+            if (Object.keys(user.beat).length === 0) {
+                savedBeats.empty().append(
+                $('<option>').attr('value', 'none').html('<i>(No Saved Beats)</i>')
+                );
+            }else{
+                savedBeats.empty().append(
+                $('<option>').attr('value', 'none').html('<i>Select a Saved Beat:</i>')
+                );
+            }
+            for (var i in user.beat) {
+                savedBeats.append(
+                    $('<option>').attr('value', i).text(i)
+                );
+            }
         }
         savedBeats.children('option').sort( function (a,b) { //sort beats alphabetically
             if (a.value === 'none') return -1;
@@ -668,10 +801,16 @@ window.onload = function() {
                 msg('Enter a name for this beat.',true,'Save Beat',true,entered);
                 function entered(name) {
                     if(!name || name === 'none') return;
-                    if (localStorage.getItem(name) && name !== 'none') { 
+                    if (user?user.beat[name]:localStorage.getItem(name) && name !== 'none') { 
                         function yes() {
-                            localStorage.setItem(name, beat);
-                            updateSaved();
+                            if(!user) { //if were not logged in/ using localStorage
+                                localStorage.setItem(name, beat);
+                                updateSaved();
+                            }
+                            else {
+                                user.beat[name] = beat;
+                                updateSaved();
+                            }
                         }
                         function no() {
                             getBeatName();
@@ -679,8 +818,14 @@ window.onload = function() {
                         msg('That name is already used. Do you want to replace the old beat with this one?',false,'Yes',true, yes, no);
                         //if(confirm('That name is already used. Do you want to replace the old beat with this one?')) {
                     }else{
-                        localStorage.setItem(name, beat);
-                        updateSaved();
+                        if(!user) { //if using localStorage
+                            localStorage.setItem(name, beat);
+                            updateSaved();
+                        }else{ //db
+                            user.beat[name] = beat;
+                            user.setBeat();
+                            updateSaved();
+                        }
                     }
                 }
             }
@@ -689,7 +834,7 @@ window.onload = function() {
     ).append(
         $('<button>', {text: 'Load'}).css('display', 'inline-block').click( function() { //load button
             if (savedBeats.val() !== 'none' && !started) {
-                var beat = localStorage.getItem(savedBeats.val());
+                var beat = user?user.beat[savedBeats.val()]:localStorage.getItem(savedBeats.val());
                 Metronome.reviveBeat(beat);
             }
         })
@@ -698,9 +843,14 @@ window.onload = function() {
             if (savedBeats.val() !== 'none') 
                 msg('Are you want to delete "'+savedBeats.val()+'" ?',false, 'Delete',true,yes)
                 function yes() {
-                //if (confirm('Are you want to delete \"'+savedBeats.val()+'\" ?')) {
-                    localStorage.removeItem(savedBeats.val());
-                    updateSaved();
+                    if(!user) { //using localStorage
+                        localStorage.removeItem(savedBeats.val());
+                        updateSaved();
+                    }else{ //DB
+                        delete user.beat[savedBeats.val()];
+                        user.setBeat();
+                        updateSaved();
+                    }
                 }
         })
     );
@@ -857,8 +1007,10 @@ window.onload = function() {
         str = str.replace(/[!].*?[!]/g, ''); //escape comments.
         str = str.replace(/\[\s*\[/g, '[0,['); //need to insert 0's between closley nested reps
         str = str.replace(/\]([^,]+)\]/g, ']$1,0]'); //same as above but for the closing bracket.
+        str = str.replace(/\]([^,|]+)[|]/g, ']$1,0|'); //necessary for having loops exits (|) that are next to a brace ].
         str = str.replace(/x/gi, '*'); //option to use 'x' for multiplication.
         str = str.replace(/[\\|]/g, '|,'); //prep a 'chop' cell
+        
         var cells = str.split(','); //beat values are seperated by commas.
         for (var i in cells) {
             if (cells[i].search(/@/) != -1) { //if theres a pitch modifier

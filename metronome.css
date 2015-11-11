@@ -247,6 +247,18 @@ button {
     background-color: transparent;
     border: solid 0px black;
 }
+.loginButton {
+    line-height: 0;
+    padding: 0px;
+    position: absolute;
+    left: 11px;
+    top: 11px;
+    width: 53px;
+    height: 15px;
+    color: #EFF0DF;
+    background-color: transparent;
+    border: solid 0px black;
+}
 .help {
     padding: 20px;
     text-align: left;
