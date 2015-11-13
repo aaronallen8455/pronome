@@ -53,7 +53,7 @@ window.onload = function() {
     
     var loginButton = $('<button>', {text: '[log-in]'}).addClass('loginButton').appendTo(mets).click(logIn);
     function logIn() {
-        msg('Enter your e-mail and password to access your account.', 'login', 'Log In', 'true', yes);
+        msg('Enter your e-mail and password to access your account.<br /> New user? Register <a href="signup.php">here</a>.', 'login', 'Log In', 'true', yes);
         function yes(c) {
             user = new User(c[0], c[1]) //log the user in
         }
@@ -164,13 +164,16 @@ window.onload = function() {
         this.counter = 0;
         //var timer = (new Date).getMilliseconds();
         loaderProg(0,InstrSamp.array.length);
+        var a = new Audio();
+        var canPlayOgg = true;
+        if(!a.canPlayType("application/ogg")) canPlayOgg = false;
+        delete a;
         InstrSamp.array.forEach(function(x,i,a) { //create a buffer node for each sound file.
             var path;
-            //a = new Audio();
-            //if(a.canPlayType("audio/ogg")) //check for compatability
+            if(canPlayOgg) //if apple, use mp3 files
                 path = './drums/' + x.toLowerCase() + '.ogg';
-            //else path = './drums/aiff/' + x.toLowerCase() + '.aiff';
-            //delete a;
+            else path = './drums/mp3/' + x.toLowerCase() + '.mp3';
+            
             var request = new XMLHttpRequest();
             request.open('GET', path);
             request.responseType = 'arraybuffer';
@@ -274,8 +277,8 @@ window.onload = function() {
     InstrSamp.played = new Array(40); //holds most recent buffersources for easy stopping.
     InstrSamp.hiHatSrc = new Array(4); //holds hihat sounds to be stopped when hihat pedal down occurs.
     
-    var user = undefined;
-    function User(email, pw) { //Created when a user logs in successfully.
+    
+    function User(email, pw, remembered) { //Created when a user logs in successfully.
         this.email = email;
         this.password = pw;
         this.beat = {}; //beats are stored as name: 'jsoned beat'
@@ -283,10 +286,10 @@ window.onload = function() {
         /*if (this.login()) //check credentials.
             this.isAuthorized = true;
         else delete this; //login failed, delete user obj*/
-        this.getBeat()
+        this.getBeat(remembered)
     }
     
-    User.prototype.getBeat = function() { //download the beat json
+    User.prototype.getBeat = function(remembered) { //download the beat json
         var _this = this;
         var c = {email: this.email, pass: this.password, type: 'getBeat'};
         c = JSON.stringify(c);
@@ -304,6 +307,7 @@ window.onload = function() {
                     }
                     msg('Incorrect email or password.', false, 'Try Again',true,yes);
                     user = false;
+                    localStorage.removeItem('__rememberMe');
                     return;
                 }
                 if(result == '' || result === '{}') result = null;
@@ -317,7 +321,8 @@ window.onload = function() {
                         _this.setBeat();
                 }
                 _this.syncBeat(result);
-                msg('Logged in as \''+user.email+'\'', false, true, false);
+                if(!remembered) //if user logged in automatically, don't show this message.
+                    msg('You have logged in as \''+user.email+'\'', false, true, false);
                 loginButton.text('[log-out]').unbind('click',logIn).click(logOut);
             }
         };
@@ -334,6 +339,10 @@ window.onload = function() {
                 var result = req.responseText;
                 if(result === 'fail') {
                     console.log('Failed to upload beat to database.');
+                    function yes() {
+                        user.setBeat();
+                    }
+                    msg('Oops, there was an error accessing the database. The change you were trying to make has not been properly saved. Click \'Try Again\' to retry.',false,'Try Again',true,yes);
                     return false;
                 }
                 else {
@@ -355,7 +364,14 @@ window.onload = function() {
     
     User.prototype.logOut = function() {
         user = false;
+        localStorage.removeItem('__rememberMe');
         updateSaved();
+    }
+    var user;
+    if(localStorage.getItem('__rememberMe')) { //if the remember cookie is present, create the user from it.
+        var email = localStorage.getItem('__rememberMe').split(',', 2)[0];
+        var pass = localStorage.getItem('__rememberMe').split(',', 2)[1];
+        user = new User(email, pass, true);
     }
     
     /*
@@ -678,15 +694,29 @@ window.onload = function() {
         var input;
         var email;
         var pass;
+        var remember;
         if (inputField)
             _div.children(0).append('<br /><br />');
-        if (inputField === 'login') { //if were creating an account.
+        if (inputField === 'login') { //if we're logging in.
             var p = $('<p>').appendTo(_div.children(0)).css('textAlign', 'left').css('padding-left', '20px');
             p.append('E-mail:<br />');
-            email = $('<input>').attr('type', 'text').appendTo(p).focus();
+            email = $('<input>').attr('type', 'text').attr('spellcheck',false).appendTo(p).focus();
             p.append('<br />');
             p.append('Password:<br />');
             pass = $('<input>').attr('type', 'password').appendTo(p);
+            p.append('<br /><br />');
+            p.append('Remember Me:');
+            remember = $('<input type="checkbox">').val(0).change(function() {
+                if (this.value == 1) {
+                    localStorage.removeItem('__rememberMe');
+                    this.value = 0;
+                }else{
+                    this.value = 1;
+                }
+            }).appendTo(p);
+            if(localStorage.getItem('__rememberMe')) {
+                remember.attr('checked', true).val(1);
+            }
         }else if (inputField)
             input = $('<input>').attr('type', 'text').appendTo(_div.children(0)).focus();
         if (cancel) {
@@ -699,13 +729,15 @@ window.onload = function() {
             );
         }
         if (ok) {
-            if (ok === true) ok = 'OK';
+            if (ok === true) ok = 'Ok';
             _div.append(
                 $('<button>').html(ok).click(function() {
-                    if(email && pass) { //creating an account.
+                    if(email && pass) { //logging in an account.
                         if(email.val() == '' || pass.val() == '')
                             return;
                         successCall([email.val(),pass.val()]);
+                        if(remember.val() == 1)
+                            localStorage.setItem('__rememberMe', email.val()+','+pass.val());
                     }else{ //normal dialog
                         if (input && input.val() == '')
                             return;
@@ -789,7 +821,8 @@ window.onload = function() {
         }).detach().appendTo(savedBeats);
         savedBeats.val('none'); //make the descriptor the default option
     }
-    updateSaved();
+    if(!localStorage.getItem('__rememberMe'))
+        updateSaved();
     
     $('<div>', {css: {display: 'inline-block', textAlign: 'left'}}).appendTo(options).append(savedBeats).append('<br />').append(
         $('<button>', {text: 'Save'}).css('display', 'inline-block').click( function() { //the save button
@@ -810,6 +843,7 @@ window.onload = function() {
                             else {
                                 user.beat[name] = beat;
                                 updateSaved();
+                                user.setBeat();
                             }
                         }
                         function no() {
@@ -839,7 +873,7 @@ window.onload = function() {
             }
         })
     ).append(
-        $('<button>', {text: 'Delete'}).css('display', 'inline-block').click( function() {
+        $('<button>', {text: 'Delete'}).css('display', 'inline-block').click( function() { //delete button
             if (savedBeats.val() !== 'none') 
                 msg('Are you want to delete "'+savedBeats.val()+'" ?',false, 'Delete',true,yes)
                 function yes() {
