@@ -1,11 +1,13 @@
 <?php
+require 'config.inc.php';
+/*
 $host = substr($_SERVER['HTTP_HOST'], 0, 5);
 
 if (in_array($host, array('local', '127.0', '192.1'))) { //determine if host is local or on the server.
     $local = true;
 }else{
     $local = false;
-}
+}*/
 if($_SERVER['REQUEST_METHOD'] != 'POST') { //post is the only way to access.
     exit();
 }
@@ -13,12 +15,13 @@ $c = file_get_contents('php://input');
 $c = json_decode($c);
 
 try { //establish DB connection
-    if($local) {
+    /*if($local) {
         $dbc = new PDO('mysql:dbname=test;host=localhost','root','');
     }else{
         //echo gethostbyname('www.pronome.net');
         $dbc = new PDO('mysql:dbname=pronzneu_pronome;host=localhost','pronzneu_aaron','raybrown1');
-    }
+    }*/
+    $dbc = new PDO(DSN,USER,PASS);
 }
 catch (PDOException $e) {
     //print_r($e);

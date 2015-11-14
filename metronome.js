@@ -53,12 +53,12 @@ window.onload = function() {
     
     var loginButton = $('<button>', {text: '[log-in]'}).addClass('loginButton').appendTo(mets).click(logIn);
     function logIn() {
-        msg('Enter your e-mail and password to access your account.<br /> New user? Register <a href="signup.php">here</a>.', 'login', 'Log In', 'true', yes);
+        msg('Enter your e-mail and password to access your account.<br /> New user? Register ', 'login', 'Log In', 'true', yes);
         function yes(c) {
             user = new User(c[0], c[1]) //log the user in
         }
     }
-    function logOut() {
+    function logOut() { //log user out.
         msg('You have logged out.',false,true,false);
         loginButton.unbind('click',logOut).click(logIn).text('[log-in]');
         user.logOut();
@@ -638,7 +638,7 @@ window.onload = function() {
     }
                 
     
-    
+    var isChrome = navigator.userAgent.indexOf('Chrome') != -1; //true if browser is Chrome.
     var options = $('<div>').addClass('options');
     
     var moreOptns = $('#moreOptns').click(showOptns); //the more options button
@@ -647,7 +647,7 @@ window.onload = function() {
         $('#controlWrap').append(options);
         options.slideUp(0).slideDown(300).css({
             top: controlWrap.offsetHeight,
-            width: controlWrap.offsetWidth -8.5
+            width: controlWrap.offsetWidth -(isChrome?7.5:8.5) //chrome and firefox has slightly different measurments.
         });
         $(this).text('[less]');
         moreOptns.unbind('click');
@@ -671,7 +671,7 @@ window.onload = function() {
         if(parseFloat(mets.style.marginTop.slice(0,-2)) <0) mets.style.marginTop = '0px';
         options.css({
             top: controlWrap.offsetHeight,
-            width: controlWrap.offsetWidth -8.5
+            width: controlWrap.offsetWidth -(isChrome?7.5:8.5)
         });
         metronomes.forEach(function(x){
             x.beatInput.css('maxWidth',x.div.width()-60);
@@ -695,9 +695,14 @@ window.onload = function() {
         var email;
         var pass;
         var remember;
-        if (inputField)
+        if (inputField && inputField !== 'login')
             _div.children(0).append('<br /><br />');
         if (inputField === 'login') { //if we're logging in.
+            $('<a href="#">').text('here.').appendTo(_div.children(0)).click(function() {
+                close();
+                msg('<iframe src="signup.php"></iframe>',false,'Done');
+                return false;
+            });
             var p = $('<p>').appendTo(_div.children(0)).css('textAlign', 'left').css('padding-left', '20px');
             p.append('E-mail:<br />');
             email = $('<input>').attr('type', 'text').attr('spellcheck',false).appendTo(p).focus();

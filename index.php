@@ -3,9 +3,9 @@
 <head>
     <title>ProNome</title>
     <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
-    <link rel="stylesheet" type="text/css" href="metronome.css" media="all" />
+    <link rel="stylesheet" type="text/css" href="metronome.css?<?php echo filemtime('metronome.css');?>" media="all" />
     <script src="jquery.js" type="text/javascript"></script>
-    <script type="application/javascript" src="metronome.js"></script>
+    <script type="application/javascript" src="metronome.js?<?php echo filemtime('metronome.js');?>"></script>
     </head>
 <body>
     <div id="mets">

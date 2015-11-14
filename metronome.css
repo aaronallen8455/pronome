@@ -1,7 +1,16 @@
 body {
     background-color: #21262C;
 }
-
+a:link {
+    color:cornflowerblue;
+}
+a:visited {
+    color:blueviolet;
+}
+iframe {
+    border: none;
+    height: 240px;
+}
 #mets {
     position: relative;
     margin-left: auto;
