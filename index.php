@@ -1,3 +1,9 @@
+<?php
+header("Last-Modified: ".date('D, d M Y H:i:s T',filemtime('index.php')));
+header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
+header("Pragma: no-cache");
+header("Cache-Control: no-cache");
+?>
 <!DOCTYPE html>
 <html>
 <head>

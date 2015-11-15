@@ -170,9 +170,9 @@ window.onload = function() {
         delete a;
         InstrSamp.array.forEach(function(x,i,a) { //create a buffer node for each sound file.
             var path;
-            if(canPlayOgg) //if apple, use mp3 files
+            if(canPlayOgg) //if apple, use wav files
                 path = './drums/' + x.toLowerCase() + '.ogg';
-            else path = './drums/mp3/' + x.toLowerCase() + '.mp3';
+            else path = './drums/wav/' + x.toLowerCase() + '.wav';
             
             var request = new XMLHttpRequest();
             request.open('GET', path);
@@ -1148,7 +1148,9 @@ window.onload = function() {
                     pitch = undefined;
                 }else cells[i] = parseFloat(result); //if the beat cell has been reduced to a single number, we're done!
                 if (repeat) { //if this cell is to be repeated.
-                    for (var p =0; p<repeat-1; p++)
+                    if (chop!=undefined && chop === parsedBeat.length) //if theres a chop right after a repeating cell, chop after repeats.
+                        chop += repeat-1;
+                    for (var p =0; p<repeat-1; p++) 
                         if(Array.isArray(cells[i])) parsedBeat.push(cells[i].slice(0)); //clone if array.
                         else parsedBeat.push(cells[i]);
                     if (last.search(/\d/) != -1){ //if theres a modifier on the final rep.
@@ -1158,8 +1160,10 @@ window.onload = function() {
                             parsedBeat.push(cells[i]);
                         }else parsedBeat.push(cells[i] + parseBeat(last)[0]);
                     }else parsedBeat.push(cells[i]);
+                    
                     last = undefined;
                     repeat = undefined;
+                    
                 }else parsedBeat.push(cells[i]);
                 if (repTimes) { //if a multi-cell repeat needs to be executed.
                     var len = repStart.length-1; //get innermost nested repeat.
