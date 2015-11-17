@@ -83,25 +83,30 @@ window.onload = function() {
         if (metronomes.length === 0) return false;
         if (started) return false;
         newButton.setAttribute('disabled', true); //can't add new layers during play.
-        if(context.state === 'suspended') context.resume();
-        if(chrInter) clearInterval(chrInter);
-        started = true;
-        time = context.currentTime+.1; //used as the metronomes' start time and to set the needle on the graph
-        if (randomMuteTime.val() > 0) { //the random mute incrementer.
-            randMuteStart();
-            randMute = 0;
+        if (context.state === 'suspended') {
+            context.resume().then(_start); //dont continue until context is resumed.
+        }else
+            _start();
+        function _start() {
+            if(chrInter) clearInterval(chrInter);
+            started = true;
+            time = context.currentTime+.1; //used as the metronomes' start time and to set the needle on the graph
+            if (randomMuteTime.val() > 0) { //the random mute incrementer.
+                randMuteStart();
+                randMute = 0;
+            }
+            for (var i in metronomes)
+                metronomes[i].start();
+            worker.postMessage({'s':'start', 't':25});
+            if (setMute1.val() && setMute2.val()) { //initiates the Set Mute feature if its being used.
+                setMuteTime1 = (parseBeat(setMute1.val())[0]*60/tempo);
+                setMuteTime2 = (parseBeat(setMute2.val())[0]*60/tempo);
+                setMuteOn = true;
+                muteStart = context.currentTime + .09 + setMuteTime1; //offset by .09 b/c the beat is offset by .1 and we need a little room for error.
+                muteEnd = context.currentTime + .09 + setMuteTime1 + setMuteTime2;
+            }
+            if(visGraph) drawGraph(); //graph it
         }
-        for (var i in metronomes)
-            metronomes[i].start();
-        worker.postMessage({'s':'start', 't':25});
-        if (setMute1.val() && setMute2.val()) { //initiates the Set Mute feature if its being used.
-            setMuteTime1 = (parseBeat(setMute1.val())[0]*60/tempo);
-            setMuteTime2 = (parseBeat(setMute2.val())[0]*60/tempo);
-            setMuteOn = true;
-            muteStart = context.currentTime + .09 + setMuteTime1; //offset by .09 b/c the beat is offset by .1 and we need a little room for error.
-            muteEnd = context.currentTime + .09 + setMuteTime1 + setMuteTime2;
-        }
-        if(visGraph) drawGraph(); //graph it
     }
     
     worker.onmessage = function() { //whenever the worker ticks
@@ -125,19 +130,20 @@ window.onload = function() {
                 if(started) {
                     return;
                 }
-                context.resume()
-                var _osc = context.createOscillator(); //create some inperceptable noise to keep connection open.
-                _osc.frequency.value = 10;
-                var _gain = context.createGain();
-                _gain.gain.value = .01;
-                _osc.connect(_gain);
-                _gain.connect(context.destination);
-                _osc.start(context.currentTime);
-                _osc.stop(context.currentTime + .01);
-                setTimeout(function() {
-                    if(!started)
-                        context.suspend();
-                },20);
+                context.resume().then(function() {
+                    var _osc = context.createOscillator(); //create some inperceptable noise to keep connection open.
+                    _osc.frequency.value = 10;
+                    var _gain = context.createGain();
+                    _gain.gain.value = .01;
+                    _osc.connect(_gain);
+                    _gain.connect(context.destination);
+                    _osc.start(context.currentTime);
+                    _osc.stop(context.currentTime + .01);
+                    setTimeout(function() {
+                        if(!started)
+                            context.suspend();
+                    },20);
+                });
             },30000);
         /*InstrSamp.played.forEach(function(x,i,a){ //stop any sound samples that may still be ringing such as cymbals.
             if(x instanceof AudioBufferSourceNode)
@@ -310,19 +316,33 @@ window.onload = function() {
                     localStorage.removeItem('__rememberMe');
                     return;
                 }
-                if(result == '' || result === '{}') result = null;
-                result = JSON.parse(result);
-                if(result == null) { //if the account has no beats, we import local beats.
-                    for(var i=0; i<localStorage.length; i++) {
-                        var name = localStorage.key(i);
-                        _this.beat[name] = localStorage.getItem(name);
-                    }
-                    if (Object.keys(_this.beat).length != 0)
-                        _this.setBeat();
+                if(result == '' || result === '{}') {
+                    result = null;
+                    var beatCount = (function() { //see if there are any local beats.
+                        for (var i=0; i<localStorage.length; i++) {
+                            if(localStorage.key(i) !== '__rememberMe')
+                                return true;
+                        }
+                        return false;
+                    })();
                 }
-                _this.syncBeat(result);
-                if(!remembered) //if user logged in automatically, don't show this message.
+                result = JSON.parse(result);
+                if(result == null && beatCount) { //if the account has no beats, we prompt to import local beats.
+                    function yes1() {
+                        for(var i=0; i<localStorage.length; i++) {
+                            var name = localStorage.key(i);
+                            if(name !== '__rememberMe') //don't import the cookie
+                                _this.beat[name] = localStorage.getItem(name);
+                        }
+                        if (Object.keys(_this.beat).length != 0)
+                            _this.setBeat();
+                        updateSaved();
+                    }
+                    msg('You have logged in as \''+user.email+'\'.<br />No beats were found in this account, would you like to import your locally stored beats?', false, 'Yes', true, yes1);
+                }else if(!remembered) //if user logged in automatically, don't show this message.
                     msg('You have logged in as \''+user.email+'\'', false, true, false);
+                
+                _this.syncBeat(result);
                 loginButton.text('[log-out]').unbind('click',logIn).click(logOut);
             }
         };
@@ -1691,18 +1711,11 @@ window.onload = function() {
                     preCaretRange.setEnd(range.endContainer, range.endOffset);
                     caretOffset = preCaretRange.toString().length;
                 }
-            /*} else if ( (sel = doc.selection) && sel.type != "Control") {
-                var textRange = sel.createRange();
-                var preCaretTextRange = doc.body.createTextRange();
-                preCaretTextRange.moveToElementText(element);
-                preCaretTextRange.setEndPoint("EndToEnd", textRange);
-                caretOffset = preCaretTextRange.text.length;*/
+            
             }
-            //console.log(caretOffset);
             return caretOffset;
         }
         function setCaret(pos, child) {
-            //console.log('ele.children '+ele.children+' '+child +' pos'+pos);
             var range = document.createRange();
             var sel = window.getSelection();
             range.setStart(ele.children[child].childNodes[0], pos);
@@ -1712,93 +1725,15 @@ window.onload = function() {
             ele.focus();
         }
         var caret = getCaret();
-        //console.log(caret);
-        /*if(ele.key === 13) {
-            ele.innerHTML += '<br />';
-            this.beatInput.old = ele.innerHTML;
-            ele.key = 1;
-            return;
-        }*/
-        //console.log(window.getSelection());
+        
         
         this.beatInput.working = true; //prevent beat from being validated while editing.
         var old = this.beatInput.old.replace(/<.+?>/g, '');
         var current = ele.innerHTML.replace(/<.+?>/g, '');
         current = current.replace(/&.+?;/g, ''); //strip html
-        //var scroll = ele.scrollLeft;
-        /*
-        if(old === current && ele.key === 8) { //if the 'cursor' span was what was deleted
-            var replace = this.beatInput.old.replace(/<[^>]*?width.*?><\/span>/, '&');
-            replace = replace.replace(/<.+?>/g, '');
-            var i = replace.indexOf('&'); //use the dummy character to get the index.
-            replace = replace.slice(0,i-1) + replace.slice(i+1); //delete what should have been deleted.
-            this.beatInput.old = ele.innerHTML;
-            current = replace;
-        }else if(old === current && !sel) return; //if nothing changed, exit.
-        else if(ele.key === 8) { //exit for a delete, avoids some bugs...
-            this.beatInput.old = ele.innerHTML;
-            this.beatInput.working = false;
-            ele.key = 7;
-            return;
-        }*/
-        var index = caret;
-        //var index = old.length;
-        /*if(i != undefined) index = i-1; //if 'cursor' was deleted, we know the correct index already.
-        else{
-            for (var i=0; i<old.length; i++) { //check if the new value is different than old and set the index of change.
-                if(old[i] !== current[i]) {
-                    index = i;
-                    break;
-                }
-            }
-        }*/
-        /*
-        if (i !=undefined) index = i-1;
-        else{
-            for (var i=0; i<this.beatInput.old.length; i++) {
-                if(this.beatInput.old[i] !== ele.innerHTML[i]) {
-                    var index = ele.innerHTML.lastIndexOf('<',i);
-                    var front = ele.innerHTML.slice(index,i+1).replace(/<.+?>/, '');
-                    var back = ele.innerHTML.slice(i+1).replace(/<.+?>/g,'');
-                    ele.innerHTML = ele.innerHTML.slice(0,index);
-                    break;
-                }
-            }
-        }*/
         
-        /*
-        if ((current.slice(0,index+1)).search(/(.)\1+$/) != -1 && ele.key !== 8) { //escape repeated characters, bug.
-            if(ele.innerHTML.search(/<[^>]*?width.*?>.<\/span>/) != -1 && (navigator.userAgent.indexOf('hrome') == -1)) { //if the repeated character was placed inside the 'cursor'
-                var replace = ele.innerHTML.replace(/<[^>]*?width.*?>(.)<\/span>/,'&$1');
-                replace = replace.replace(/<.+?>/g, '');
-                index = replace.indexOf('&'); //we can get the correct index, and do not escape.
-                
-            }else{
-                this.beatInput.old = ele.innerHTML;
-                this.beatInput.working = false;
-                return;
-            }
-        }*/
-        /*
-        var cursor = document.createElement('span'); //used to position the cursor after the beat is 'rebuilt'
-        cursor.setAttribute('contenteditable', 'true');
-        cursor.style.backgroundColor = '#292929';
-        cursor.style.width = '1px';
-        cursor.style.height = '1px';
-        cursor.style.display = 'inline-block'; //setting these props so it shows the cursor in chrome
-        cursor.style.marginTop = '0px';
-        */
-        /*if (ele.key != 8) { //key pressed was a 'delete'
-            var front = current.slice(0,index+1);
-            var back = current.slice(index+1);
-        }else{ //if its a delete, we put the cursor behind the point of change.
-            var front = current.slice(0,index);
-            var back = current.slice(index);
-        }*/
-        /*
-        while(ele.firstChild) { //clear input spans
-            ele.removeChild(ele.firstChild);
-        }*/
+        var index = caret;
+        
         ele.innerHTML = '';
         if (!mobile || sel !== true)
             current = current.slice(0,index) + '&' + current.slice(index); //& is the carret position.
@@ -1839,22 +1774,7 @@ window.onload = function() {
                             span.style.color = '#69BA1E';
                             break;
                     }
-                    /*
-                    if(x.indexOf('&') != -1) {
-                        node = x.indexOf('&');
-                        str = str.replace(/&/, '');
-                        if(con) {
-                            console.log(x);
-                            if(x[x.length-1] === '&')
-                                childCount++;
-                            else {
-                                childCount++;
-                                console.log('here');
-                            }
-                        x = x.replace(/&/, '');
-                        
-                        }
-                    }*/
+                    
                     
                     con = false;
                     if (x==null) continue;
@@ -1862,9 +1782,7 @@ window.onload = function() {
                     
                 }else{ //if not continuing
 
-                    //var x = str.match(/\.?\d+\.?|^[,\\|]|\[|\][^,\\|\(\]]*[,\\|\(\]]?|[+-\/\*xX]|^\([^,\]\\|@]*[,\]\\|@]*|^@[^,\\|\(\]]*[,\\|\(\]]?|![^!]*!?|./)[0];
-                    //^^^ all valid syntax entries.
-                    //if (x=='') return;
+                    
                     
                     var x;
 
@@ -1934,26 +1852,16 @@ window.onload = function() {
                         node = x.indexOf('&');
                         str = str.replace(/&/, '');
                         if(con) {
-                            
-                            //if(x[x.length-1] === '&')
-                            //    childCount++;
-                            //else {
-                                childCount++;
-                                //if(con === 'com' && (x.indexOf('&') != 0||x.length-1))
-                            //}
+                            childCount++;
+                              
                             x = x.replace(/&/, '');
-                        
                            
                         }
                     }
 
                 }
-                //console.log('x:'+x+' childCount:'+childCount);
                 span.textContent = x;
-                //if(x === ',') {
-                    //span.innerHTML = ',\t';
-                    //span.setAttribute('contenteditable', 'false');
-                //}
+                
                 ele.appendChild(span);
                 if(node === false)
                     childCount++;
@@ -1962,18 +1870,7 @@ window.onload = function() {
         }
         if (sel !== true)
             color(current);
-        //color(front);
-        //if(!mobile) ele.appendChild(cursor); //place the cursor position
-        //color(back);
-        /*
-        if(!mobile && sel !== true) cursor.focus();
-        ele.setAttribute('contenteditable', 'true');
-        if(!mobile && sel !== true) ele.focus();
-        if(navigator.userAgent.indexOf('hrome') != -1) {
-            cursor.innerHTML = '<b></b>';
-            cursor.focus();
-            //cursor.scrollIntoViewIfNeeded(false);
-        }*/
+        
         if(!mobile || sel !== true)
             setCaret(node, childCount-1);
         this.beatInput.old = ele.innerHTML;//current;//ele.innerHTML.replace(/<.+?>/g, '');
@@ -2086,8 +1983,12 @@ window.onload = function() {
         this.time = context.currentTime;
         var offset = this.offSet*60/tempo;
         while (this.startTime - this.time < lookAhead - offset) {
+            this.startTimeC = this.startTime; //the current startTime. this.startTime has to be changed ASAP so we use this value instead.
+            
             if (this.n >= this.beat.length) this.n = 0; //loop the beat.
+                
             if (Array.isArray(this.beat[this.n])) { //check if its pitch modified
+                this.startTime += this.beat[this.n][0] * 60/tempo; //get start time of the next note. Soon as possible to prevent mobile skip bug.
                 if(!this.instr[0]) {
                     var freq = parseFloat(this.beat[this.n][1]).toFixed(2);
                     var beat = this.beat[this.n][0];
@@ -2101,18 +2002,20 @@ window.onload = function() {
                         var _gainDecay = context.createGain(); //this fixes a bug in chrome.
                         _gainDecay.gain.value = 1;
                         _gainDecay.connect(_lowPass);
-                        _gainDecay.gain.setTargetAtTime(0, this.startTime + offset + _cutoff+.07, 0||0.0009); //cuts off a pop. 0 throws error in firefox
+                        _gainDecay.gain.setTargetAtTime(0, this.startTimeC + offset + _cutoff+.07, 0||0.0009); //cuts off a pop. 0 throws error in firefox
                     }else _lowPass.frequency.value = freq*4;
                 }else{ //if its an instrument with @ modifier.
                     var instr = (parseInt(this.beat[this.n][1])-1).toString(); //make it string so '0' is possible.
                     var beat = this.beat[this.n][0];
                 }
-            }
-            if (setMuteOn && this.startTime+offset >= muteEnd) {
+            }else
+                this.startTime += this.beat[this.n] * 60/tempo; //get start time of the next note. Soon as possible to prevent mobile skip bug.
+            
+            if (setMuteOn && this.startTimeC+offset >= muteEnd) {
                 muteStart = muteEnd + setMuteTime1;
                 muteEnd = muteEnd + setMuteTime1 + setMuteTime2;
             }
-            if (this.beat[this.n]!=0 && (!setMuteOn || !(this.startTime+offset>=muteStart))) {
+            if (this.beat[this.n]!=0 && (!setMuteOn || !(this.startTimeC+offset>=muteStart))) {
                 if (randMute === 0 || Math.random() > randMute) {
                     var that = this;
                     if(!this.instr[0]) {
@@ -2122,16 +2025,16 @@ window.onload = function() {
                             var gainDecay = context.createGain();
                             gainDecay.gain.value = 1;
                             gainDecay.connect(_lowPass || this.lowPass);
-                            gainDecay.gain.setTargetAtTime(0, this.startTime+offset+.13, .045); //.04 also sounds pretty good.
+                            gainDecay.gain.setTargetAtTime(0, this.startTimeC+offset+.13, .045); //.04 also sounds pretty good.
                             this.osc.connect(gainDecay);
-                            this.osc.start(this.startTime + offset+.07);
-                            this.osc.stop(this.startTime + offset+.37);
+                            this.osc.start(this.startTimeC + offset+.07);
+                            this.osc.stop(this.startTimeC + offset+.37);
                             delete gainDecay;
                             delete this.osc;
                         }else{ //plain tone.
                             this.osc.connect(_gainDecay || this.lowPass);
-                            this.osc.start(this.startTime + offset+.07);
-                            this.osc.stop(this.startTime + offset + (_cutoff+.37 || this.cutoff+.07)); //'cutoff' prevents popping.
+                            this.osc.start(this.startTimeC + offset+.07);
+                            this.osc.stop(this.startTimeC + offset + (_cutoff+.37 || this.cutoff+.07)); //'cutoff' prevents popping.
                         }
                         if(_lowPass) {
                             delete _lowPass;
@@ -2145,7 +2048,7 @@ window.onload = function() {
                             if (samples.hiHatPedal.indexOf(x) != -1) {
                                 for(var x in InstrSamp.hiHatSrc) {
                                     if(InstrSamp.hiHatSrc[x] instanceof AudioBufferSourceNode){
-                                        InstrSamp.hiHatSrc[x].stop(this.startTime + offset+.07); //stop all hi hat sounds on a hihat pedal down sound.
+                                        InstrSamp.hiHatSrc[x].stop(this.startTimeC + offset+.07); //stop all hi hat sounds on a hihat pedal down sound.
                                     }
                                 }
                             }else{
@@ -2157,20 +2060,19 @@ window.onload = function() {
                         if (this.frequency != 0)
                             this.osc.detune.value = this.frequency; //detune by frequency value in cents
                         this.osc.connect(this.valve);
-                        this.osc.start(this.startTime + offset+.07);
+                        this.osc.start(this.startTimeC + offset+.07);
                         
                         
                         
                         if (this.beat[this.n]*60/tempo <= .274) //helps with wierd effects from a single sample repeating too quickly
-                            if(!Array.isArray(this.beat[this.n+1]) && randMute === 0 && (((this.startTime+this.beat[this.n])*60/tempo)>muteStart))
-                                this.osc.stop(this.startTime + offset+.07+(this.beat[this.n]*60/tempo));
+                            if(!Array.isArray(this.beat[this.n+1]) && randMute === 0 && (((this.startTimeC+this.beat[this.n])*60/tempo)>muteStart))
+                                this.osc.stop(this.startTimeC + offset+.07+(this.beat[this.n]*60/tempo));
                         /*InstrSamp.played.push(this.osc); //this is to allow cymbal sounds to stop precisely. Not sure if it will cause hangups.
                         InstrSamp.played.shift();*/
                         delete this.osc;
                     }
                 }
             }
-            this.startTime += (beat || this.beat[this.n]) * 60/tempo; //get start time of the next note.
             this.n++;
         }
     }
