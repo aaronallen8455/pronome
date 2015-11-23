@@ -36,6 +36,22 @@ if(isset ($_GET['h'])) {
 }else if(isset ($_POST['email']) && isset ($_POST['pass'])) { //if we are pending/ sending email verification.
     $email = $_POST['email'];
     $pass = $_POST['pass'];
+    $error;
+    
+    if(!preg_match('/.+@\w+\.\w+$/', $email)) { //validate email
+        echo '<i style="color:red">Email must be in format: someone@example.com</i><br />';
+        $error = true;
+    }
+    if(strlen($pass) < 3) { //validate password
+        echo '<i style="color:red">Password must be at least 3 characters.</i><br />';
+        $error = true;
+    }
+    if(isset ($error)) { //reprint the form if there was a user error.
+        printForm();
+        $dbc = null;
+        exit;
+    }
+    
     $hash = $email >> 5;
     $hash = strrev($hash);
     $hash = sha1($hash);
@@ -72,12 +88,15 @@ EOT;
     exit;
     
 }else{ //print the form.
+    printForm();
+}
+function printForm() {
     echo <<<EOT
 To create an account, enter a valid email address and choose a password.<br /><br />
 
 <form action="signup.php" method="POST">
 <label for="email">Email:</label>
-<input name="email" type="text" spellchecking="false" id="email"/><br />
+<input name="email" type="email" spellchecking="false" id="email"/><br />
 <label for="pass">Password:</label>
 <input name="pass" type="password" id="pass" style="margin-top:10px; margin-bottom:10px"/><br />
 <input name="submit" type="submit" value="Create Account" />
@@ -85,8 +104,8 @@ To create an account, enter a valid email address and choose a password.<br /><b
 <p style="font-size:small;">Note: Your email address will not be shared with anyone. Nor will you recieve 
 junk mail from this site.</p>
 EOT;
-
 }
+
 exit;
         ?>
     </body>

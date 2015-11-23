@@ -56,6 +56,8 @@ window.onload = function() {
         msg('Enter your e-mail and password to access your account.<br /> New user? Register ', 'login', 'Log In', 'true', yes);
         function yes(c) {
             user = new User(c[0], c[1]) //log the user in
+            document.body.style.cursor = 'wait'; //show user that we are waiting for login
+            document.getElementsByTagName('html')[0].style.cursor = 'wait';
         }
     }
     function logOut() { //log user out.
@@ -178,7 +180,7 @@ window.onload = function() {
             var path;
             if(canPlayOgg) //if apple, use wav files
                 path = './drums/' + x.toLowerCase() + '.ogg';
-            else path = './drums/wav/' + x.toLowerCase() + '.wav';
+            else path = './drums/aiff/' + x.toLowerCase() + '.aiff';
             
             var request = new XMLHttpRequest();
             request.open('GET', path);
@@ -305,6 +307,9 @@ window.onload = function() {
         //req.responseType = 'json';
         req.onreadystatechange = function() {
             if(req.readyState === 4) {
+                document.body.style.cursor = 'default'; //done waiting
+                document.getElementsByTagName('html')[0].style.cursor = 'default';
+                
                 var result = req.responseText;
                 
                 if(result === 'fail') {
@@ -718,25 +723,27 @@ window.onload = function() {
         if (inputField && inputField !== 'login')
             _div.children(0).append('<br /><br />');
         if (inputField === 'login') { //if we're logging in.
-            $('<a href="#">').text('here.').appendTo(_div.children(0)).click(function() {
-                close();
-                msg('<iframe src="signup.php"></iframe>',false,'Done');
+            $('<a href="#">').text('here.').appendTo(_div.children(0)).click(function() { //the register link
+                close(); //close current message
+                msg('<iframe src="signup.php"></iframe>',false,'Done'); //create new message that loads the sign up script.
                 return false;
             });
             var p = $('<p>').appendTo(_div.children(0)).css('textAlign', 'left').css('padding-left', '20px');
-            p.append('E-mail:<br />');
-            email = $('<input>').attr('type', 'text').attr('spellcheck',false).appendTo(p).focus();
-            p.append('<br />');
-            p.append('Password:<br />');
-            pass = $('<input>').attr('type', 'password').appendTo(p);
+            var f = $('<form>');
+            f.append('E-mail:<br />');
+            email = $('<input>').attr('type', 'email').attr('spellcheck',false).appendTo(f).focus();
+            f.append('<br />');
+            f.append('Password:<br />');
+            pass = $('<input>').attr('type', 'password').appendTo(f);
+            p.append(f);
             p.append('<br /><br />');
             p.append('Remember Me:');
-            remember = $('<input type="checkbox">').val(0).change(function() {
+            remember = $('<input type="checkbox">').val(0).change(function() { //stores login info to auto-login
                 if (this.value == 1) {
                     localStorage.removeItem('__rememberMe');
                     this.value = 0;
                 }else{
-                    this.value = 1;
+                    this.value = 1; //item isn't actually created until login is clicked.
                 }
             }).appendTo(p);
             if(localStorage.getItem('__rememberMe')) {
@@ -1293,25 +1300,31 @@ window.onload = function() {
         this.beatInput.get(0).value = function() {
             return _this.beatInput.val();
         }
-        this.beatInput.working = false;
-        if(mobile) this.beatInput.blurOff = false;
+        this.beatInput.working = false; //prevent blur event from firing while coloring the beat which causes bluring.
+        if(mobile) this.beatInput.blurOff = false; //don't fire the blur event for the blur that occurs after coloring.
         this.beatInput.get(0).addEventListener('blur', function(e) { //parse beat on blur
             if (!_this.beatInput.working) {
                 if (mobile) {
                     if(!_this.beatInput.blurOff) {
-                        _this.colorBeat(this);
                         _this.beatInput.blurOff = true;
+                        _this.colorBeat(this);
+                        if(Metronome.validate(this.value())) {
+                            this.classList.remove('error');
+                            _this.beat = parseBeat(this.value());
+                            console.log(_this.beat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0));
+                        }else this.classList.add('error');
                         this.blur();
                     }else{
                         _this.beatInput.blurOff = false;
                     }
+                }else{ //if not mobile, we dont worry about the blurOff attr.
+                    if(Metronome.validate(this.value())) {
+                        this.classList.remove('error');
+                        _this.beat = parseBeat(this.value());
+                        console.log(_this.beat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0));
+                    }else this.classList.add('error');
                 }
-                if(Metronome.validate(this.value())) {
-                    this.classList.remove('error');
-                    _this.beat = parseBeat(this.value());
-                    console.log(_this.beat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0));
-                }
-                else this.classList.add('error');
+                
             }
         }, false);
         
@@ -1542,8 +1555,8 @@ window.onload = function() {
             [/\)[^,\]@\\|]*\(|\)[^,@]*[a-z]+[^,]*/, 'Invalid final repeat modifier.'],
             [/\(\d*[^\d)]+\d*\)|\(\)/, 'The number of repeats must be an integer.'],
             [/\][^\d(]|\]$/, 'Missing \'n\' value for multi-cell repeat.'],
-            [/,$|,\s*,|^,|^$/, 'Empty beat cell.'],
-            [/^\[?\D+,|,\[?\D+,|,[^,\d\s]+$|\d[a-wyzA-WYZ]|[+\-*xX/][^\d.]|[^\d).\s]$|\D\.\D|\D\.$|\.\d+\./, 'Invalid beat cell value.'],
+            [/,$|,\s*,|^,|^$|,\(|,]/, 'Empty beat cell.'],
+            [/^\[?\D+,|,\[?\D+,|,[^,\d\s]+$|\d[a-wyzA-WYZ]|[+\-*xX/][^\d.]|[^\d).\s,]$|\D\.\D|\D\.$|\.\d+\.|^[a-zA-Z]|,[a-zA-Z]/, 'Invalid beat cell value.'],
             [/@[^a-gA-G\d]|@[a-gA-G]?[b#]?$|@[a-gA-G][^#b\d]/, 'Invalid pitch assignment using \'@\'.'],
             [/[^\[,]\[/, 'Incorrect multi-cell repeat syntax']
         ];
@@ -1659,6 +1672,7 @@ window.onload = function() {
         beat = $.parseJSON(beat);
         for (var i in beat) {
             var orig = beat[i]
+            orig.beat = orig.beat.replace(/\s/g, ''); //remove whitespace from pre-color era beats.
             var nome = new Metronome()
             metronomes.push(nome);
             //nome.beatInput.val(orig.beat).triggerHandler('change');
@@ -1696,7 +1710,7 @@ window.onload = function() {
     }
     
     Metronome.prototype.colorBeat = function(ele,sel) { //colors the beat syntax of 'ele'. if sel, don't place the cursor.
-        
+        try {
         function getCaret() {
             var caretOffset = 0;
             var doc = ele.ownerDocument || ele.document;
@@ -1730,6 +1744,7 @@ window.onload = function() {
         this.beatInput.working = true; //prevent beat from being validated while editing.
         var old = this.beatInput.old.replace(/<.+?>/g, '');
         var current = ele.innerHTML.replace(/<.+?>/g, '');
+        //current = current.replace('&nbsp;', ' ');
         current = current.replace(/&.+?;/g, ''); //strip html
         
         var index = caret;
@@ -1845,7 +1860,10 @@ window.onload = function() {
                             node = ele.children[childCount-1].innerHTML.length;
                         }
                         continue;
-                    }else return;
+                    }else{ //make errors red. needed for pitch mod if you delete the @, won't bug out.
+                        x = str[0];
+                        span.style.color = '#CC1818';
+                    }
                     
                     if(x.indexOf('&') != -1) {
                         
@@ -1861,11 +1879,11 @@ window.onload = function() {
 
                 }
                 span.textContent = x;
-                
                 ele.appendChild(span);
                 if(node === false)
                     childCount++;
                 str = str.slice(x.length);
+                
             }
         }
         if (sel !== true)
@@ -1873,8 +1891,16 @@ window.onload = function() {
         
         if(!mobile || sel !== true)
             setCaret(node, childCount-1);
+            
+        } //end try block
+        catch(e){ //catch the no child element error.
+            if(mobile)
+                this.beatInput.blurOff = false;
+        }   
+        
         this.beatInput.old = ele.innerHTML;//current;//ele.innerHTML.replace(/<.+?>/g, '');
         this.beatInput.working = false;
+        
     }
     
     Metronome.prototype.inputSlide = function(slide) {
@@ -2018,7 +2044,7 @@ window.onload = function() {
             if (this.beat[this.n]!=0 && (!setMuteOn || !(this.startTimeC+offset>=muteStart))) {
                 if (randMute === 0 || Math.random() > randMute) {
                     var that = this;
-                    if(!this.instr[0]) {
+                    if(!this.instr[0]) { //using oscillator
                         this.osc = context.createOscillator();
                         this.osc.frequency.value = freq || this.frequency;
                         if (!simpleBeep) {  //the standard chime sound
