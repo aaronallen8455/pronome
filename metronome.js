@@ -664,6 +664,8 @@ window.onload = function() {
                 
     
     var isChrome = navigator.userAgent.indexOf('Chrome') != -1; //true if browser is Chrome.
+    var isSafari = navigator.userAgent.indexOf('Safari') != -1; //true for safari.
+    
     var options = $('<div>').addClass('options');
     
     var moreOptns = $('#moreOptns').click(showOptns); //the more options button
@@ -2072,20 +2074,38 @@ window.onload = function() {
                         var x = parseInt(instr||this.instr[1]); 
                         if (samples.hiHatHit.indexOf(x) != -1) { //if its a hihat sound...
                             if (samples.hiHatPedal.indexOf(x) != -1) {
-                                for(var x in InstrSamp.hiHatSrc) {
-                                    if(InstrSamp.hiHatSrc[x] instanceof AudioBufferSourceNode){
-                                        InstrSamp.hiHatSrc[x].stop(this.startTimeC + offset+.07); //stop all hi hat sounds on a hihat pedal down sound.
+                                if(!isSafari) {
+                                    for(var i in InstrSamp.hiHatSrc) {
+                                        if(InstrSamp.hiHatSrc[i] instanceof AudioBufferSourceNode){
+                                            InstrSamp.hiHatSrc[i].stop(this.startTimeC + offset+.07); //stop all hi hat sounds on a hihat pedal down sound. safari error here
+                                            InstrSamp.hiHatSrc[i] = null;
+                                        }
+                                    }
+                                }else{ //if safari...
+                                    for(var i in InstrSamp.hiHatSrc) {
+                                        if(InstrSamp.hiHatSrc[i] instanceof GainNode) {
+                                            InstrSamp.hiHatSrc[i].gain.setTargetAtTime(0, this.startTimeC + offset +.07, 0||0.0009);
+                                            InstrSamp.hiHatSrc[i] = null;
+                                        }
                                     }
                                 }
                             }else{
-                                InstrSamp.hiHatSrc.push(this.osc); //add all hihat sounds except pedal down
-                                InstrSamp.hiHatSrc.shift();
+                                if(!isSafari) {
+                                    InstrSamp.hiHatSrc.push(this.osc); //add all hihat sounds except pedal down
+                                    InstrSamp.hiHatSrc.shift();
+                                }else{ //if safari...
+                                    var _gainNode = context.createGain(); //we use a gain node as a cut off in safari.
+                                    _gainNode.gain.value = 1;
+                                    _gainNode.connect(this.valve);
+                                    InstrSamp.hiHatSrc.push(_gainNode);
+                                    InstrSamp.hiHatSrc.shift();
+                                }
                             }
                         }
                         
                         if (this.frequency != 0)
                             this.osc.detune.value = this.frequency; //detune by frequency value in cents
-                        this.osc.connect(this.valve);
+                        this.osc.connect(_gainNode || this.valve);
                         this.osc.start(this.startTimeC + offset+.07);
                         
                         
