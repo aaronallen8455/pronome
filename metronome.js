@@ -1073,6 +1073,53 @@ window.onload = function() {
         var mult = /[\/\*]/g;
         var parsedBeat = [];
         str = str.replace(/[!].*?[!]/g, ''); //escape comments.
+        
+        if(str.indexOf('{') != -1) { //if theres a group multiply...
+            var regStart = /\{/g; //gets opening brace of all groups
+            var regEnd = /\}[\d.+\-\/*Xx]+/g; //gets closing brace of all groups
+            var startPos = []; //holds group start position(s)
+            var endPos = []; //holds group end position(s)
+            var end = str.match(/\}[\d.+\-\/*Xx]+/g); //holds all the coeficient expressions.
+            //populate startPos and endPos:
+            var ex;
+            while((ex = regStart.exec(str)) != null) {
+                startPos.push(ex.index);
+            }
+            while((ex = regEnd.exec(str)) != null) {
+                endPos.push(ex.index);
+            }
+            
+            var count = endPos.length; //the number of groups
+            
+            for(var i =0; i<count; i++) {
+                var co = end[i].slice(1);
+                var offset = 0; //keeps track of string length changes.
+                function rep(w,div,exp,pos,all) {
+                    pos += offset;
+                    if(pos >= startPos[i] && pos < endPos[i]) { //if the cell is in a group
+                        expOldL = exp.toString().length;
+                        exp = parseBeat(exp)[0]; //evaluate the expression
+                        expNewL = exp.toString().length;
+                        
+                        startPos.forEach(function(x,n,a) {
+                            if(n>i) a[n] += 1+co.length+(expNewL - expOldL);
+                        });
+                        endPos.forEach(function(x,n,a) {
+                            if(n>=i) a[n] += 1+co.length+(expNewL - expOldL);
+                        });
+                        
+                        offset += 1+co.length+(expNewL - expOldL);
+                        //console.log(i+' '+(w.length+1+co.length+(expNewL - expOldL))+' '+(div+exp+'*'+co).length);
+                        return div+exp+'*'+co;
+                    }else return w;
+                }
+                str = str.replace(/([\[{,|])([\d.+\-\/*Xx]+)/g, rep); //go through all the cell values with the 'rep' function.
+            }
+            //remove the group multiply syntax
+            str = str.replace(regStart, '');
+            str = str.replace(regEnd, '');
+        }//end of group multiply if
+        
         str = str.replace(/\[\s*\[/g, '[0,['); //need to insert 0's between closley nested reps
         str = str.replace(/\]([^,]+)\]/g, ']$1,0]'); //same as above but for the closing bracket.
         str = str.replace(/\]([^,|]+)[|]/g, ']$1,0|'); //necessary for having loops exits (|) that are next to a brace ].
@@ -1560,7 +1607,12 @@ window.onload = function() {
             [/,$|,\s*,|^,|^$|,\(|,]/, 'Empty beat cell.'],
             [/^\[?\D+,|,\[?\D+,|,[^,\d\s]+$|\d[a-wyzA-WYZ]|[+\-*xX/][^\d.]|[^\d).\s,]$|\D\.\D|\D\.$|\.\d+\.|^[a-zA-Z]|,[a-zA-Z]/, 'Invalid beat cell value.'],
             [/@[^a-gA-G\d]|@[a-gA-G]?[b#]?$|@[a-gA-G][^#b\d]/, 'Invalid pitch assignment using \'@\'.'],
-            [/[^\[,]\[/, 'Incorrect multi-cell repeat syntax']
+            [/[^\[,\}\{]\[/, 'Incorrect multi-cell repeat syntax'],
+            [/\}[\d.+\-\/*Xx]*[^\d.+\-\/*Xx,|\(\]][\d.+\-\/*Xx]*|\}[^\d.]/, 'Invalid group multiplication coefficient.'],
+            [/\{[^}]*$/, 'Missing the closing brace of a multiplication group.'],
+            [/^[^{]*\}/, 'Missing the opening brace of a multiplication group.'],
+            [/\[[^\]]*$/, 'Missing the closing brace of a multi-cell repeat.'],
+            [/^[^\[]*\]/, 'Missing the opening brace of a multi-cell repeat.']
         ];
         var pitch = [
             [/^\D+$/],
@@ -1770,11 +1822,11 @@ window.onload = function() {
                     
                     switch (con) {
                         case 'par':
-                            if(x = str.match(/^[^,\]\\|@]+/)) x = x[0]; //parenthesis and modifier expression
+                            if(x = str.match(/^[^,\]\\|@\}\{]+/)) x = x[0]; //parenthesis and modifier expression
                             span.style.color = '#69BA1E';
                             break;
                         case 'pitch': //pitch/intr selection
-                            if(x = str.match(/^[^,\\|\(\]]+/)) x = x[0];
+                            if(x = str.match(/^[^,\\|\(\]\}\{]+/)) x = x[0];
                             //else if(x = str.match(/^,/)) {
                             //    x = x[0];
                             //}
@@ -1787,8 +1839,12 @@ window.onload = function() {
                                 x = str.match(/^!/)[0];
                             break;
                         case 'brace': //closing brace. catches the 'n' modifier.
-                            if(x = str.match(/^[^,\\|\(\]]+/)) x = x[0];
+                            if(x = str.match(/^[^,\\|\(\]\}\{]+/)) x = x[0];
                             span.style.color = '#69BA1E';
+                            break;
+                        case 'curly': //closing group multiply. catches coefficient
+                            if(x = str.match(/^[^,|\(\]]+/)) x = x[0];
+                            span.style.color = '#CCB96E';
                             break;
                     }
                     
@@ -1803,33 +1859,45 @@ window.onload = function() {
                     
                     var x;
 
-                    if (x = str.match(/^\([^,\]\\|@]*[,\]\\|@]*/)) { //open parenthesis (&3
+                    if (x = str.match(/^\([^,\]\\|@\}\{]*[,\]\\|@\}\{]*/)) { //open parenthesis (&3
                         span.style.color = '#69BA1E';
                         var x = x[0];
-                        if (x.search(/\([^,\]\\|@]*[,\]\\|@]/) == -1)
+                        if (x.search(/\([^,\]\\|@\}\{]*[,\]\\|@\}\{]/) == -1)
                             con = 'par';
                         else {
                             con = 'par';
                             //if(mobile) con = false;
-                            x = x.replace(/[,\]\\|@]/g, '');
+                            x = x.replace(/[,\]\\|@\}\{]/g, '');
                         }
-                    }else if (x = str.match(/^@[^,\\|\(\]]*[,\\|\(\]]?/)) { //pitch/instr modifier
+                    }else if (x = str.match(/^@[^,\\|\(\]\}\{]*[,\\|\(\]\}\{]?/)) { //pitch/instr modifier
                         span.style.color = '#D142EB';
                         var x = x[0];
-                        if (x.search(/^@[^,\\|\(\]]*[,\\|\(\]]/) == -1)
+                        if (x.search(/^@[^,\\|\(\]\}\{]*[,\\|\(\]\}\{]/) == -1)
                             con = 'pitch';
                         else {
                             con = 'pitch';
-                            x = x.replace(/[,\\|\(\]]/, '');
+                            x = x.replace(/[,\\|\(\]\}\{]/, '');
                         }
-                    }else if (x = str.match(/^\][^,\\|\(\]]*[,\\|\(\]]?/)) { //back brace
+                    }else if (x = str.match(/^\][^,\\|\(\]\}\{]*[,\\|\(\]\}\{]?/)) { //back brace
                         span.style.color = '#69BA1E';
                         var x = x[0];
-                        if (x.search(/\][^,\\|\(\]]*[,\\|\(\]]/) == -1)
+                        if (x.search(/\][^,\\|\(\]\}\{]*[,\\|\(\]\}\{]/) == -1)
                             con = 'brace';
                         else {
                             con = 'brace';
-                            x = x.replace(/[,\\|\(]/, '');
+                            x = x.replace(/[,\\|\(\}\{]/, '');
+                        }
+                    }else if (x = str.match(/^\{/)) { //open multiply group
+                        span.style.color = '#CCB96E';
+                        x = x[0];
+                    }else if (x = str.match(/^\}[^,|\(\]]*[,|\(\]]?/)) {
+                        span.style.color = '#CCB96E';
+                        x = x[0];
+                        if (x.search(/\}[^,|\(\]]*[,|\(\]]/) == -1)
+                            con = 'curly';
+                        else {
+                            con = 'curly';
+                            x = x.replace(/[,|\(\]]/, '');
                         }
                     }else if (x = str.match(/^![^!]*!?/)) { //comment
                         span.style.color = 'grey';
@@ -2071,6 +2139,7 @@ window.onload = function() {
                     }else{ //if we're using instrument samples
                         this.osc = context.createBufferSource();
                         this.osc.buffer = samples.buffers[instr||this.instr[1]];
+                        
                         var x = parseInt(instr||this.instr[1]); 
                         if (samples.hiHatHit.indexOf(x) != -1) { //if its a hihat sound...
                             if (samples.hiHatPedal.indexOf(x) != -1) {
@@ -2106,9 +2175,8 @@ window.onload = function() {
                         if (this.frequency != 0)
                             this.osc.detune.value = this.frequency; //detune by frequency value in cents
                         this.osc.connect(_gainNode || this.valve);
+                        
                         this.osc.start(this.startTimeC + offset+.07);
-                        
-                        
                         
                         if (this.beat[this.n]*60/tempo <= .274) //helps with wierd effects from a single sample repeating too quickly
                             if(!Array.isArray(this.beat[this.n+1]) && randMute === 0 && (((this.startTimeC+this.beat[this.n])*60/tempo)>muteStart))
