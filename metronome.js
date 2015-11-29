@@ -307,8 +307,8 @@ window.onload = function() {
         //req.responseType = 'json';
         req.onreadystatechange = function() {
             if(req.readyState === 4) {
-                document.body.style.cursor = 'default'; //done waiting
-                document.getElementsByTagName('html')[0].style.cursor = 'default';
+                document.body.style.cursor = ''; //done waiting
+                document.getElementsByTagName('html')[0].style.cursor = '';
                 
                 var result = req.responseText;
                 
@@ -635,16 +635,27 @@ window.onload = function() {
                 for(var p = 0; p<cycles[i]; p++)
                     beatCycle = beatCycle.concat(metronomes[i].beat); //create an array that contains entire beat cycle.
                 beatCycle.forEach(function(i,a,x){ //convert beat values to radians.
-                    if(Array.isArray(i))
-                       i = i[0];
+                    if(Array.isArray(i)) {
+                        if(i[1] === '0') { //if its a rest note, then mark it with a 'g'
+                            x[a]=i[0]/totalCycleTime*2*Math.PI;
+                            x[a] = 'g' + x[a];
+                            return;
+                        }
+                        i = i[0];
+                    }
                     x[a]=i/totalCycleTime*2*Math.PI;
                 }); 
 
                 for(var p=0; p<beatCycle.length;p++) {
-                    c.lineTo(0,radius-tickBot+1); //the tick mark
-                    c.lineTo(0,radius+tickTop-1);
-                    c.arc(0,0,radius,.5*Math.PI,beatCycle[p]+.5*Math.PI); //the circle.
-                    c.rotate(beatCycle[p]);
+                    if(beatCycle[p][0] == 'g') { //don't draw rest notes
+                        c.arc(0,0,radius,.5*Math.PI,parseFloat(beatCycle[p].slice(1))+.5*Math.PI); //the circle.
+                        c.rotate(beatCycle[p].slice(1));
+                    }else{
+                        c.lineTo(0,radius-tickBot+1); //the tick mark
+                        c.lineTo(0,radius+tickTop-1);
+                        c.arc(0,0,radius,.5*Math.PI,beatCycle[p]+.5*Math.PI); //the circle.
+                        c.rotate(beatCycle[p]);
+                    }
                     if ((new Date())-tO > 500) //check for timeout
                         timeOut(i+1);
                 }
@@ -1093,6 +1104,9 @@ window.onload = function() {
             
             for(var i =0; i<count; i++) {
                 var co = end[i].slice(1);
+                if (co.search(/[+\-]/) != -1) { //we need to simplify add/subtract expressions.
+                    co = parseBeat(co)[0].toString();
+                }
                 var offset = 0; //keeps track of string length changes.
                 function rep(w,div,exp,pos,all) {
                     pos += offset;
@@ -1113,7 +1127,7 @@ window.onload = function() {
                         return div+exp+'*'+co;
                     }else return w;
                 }
-                str = str.replace(/([\[{,|])([\d.+\-\/*Xx]+)/g, rep); //go through all the cell values with the 'rep' function.
+                str = str.replace(/([\[{,|\)])([\d.+\-\/*Xx]+)/g, rep); //go through all the cell values with the 'rep' function.
             }
             //remove the group multiply syntax
             str = str.replace(regStart, '');
@@ -1271,6 +1285,11 @@ window.onload = function() {
             }
             add.lastIndex = 0;
         }
+        //modify the last cell to correct for whatever tiny inaccuracy may exist.
+        var rounder = parsedBeat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0);
+        rounder = rounder.toFixed(13) - rounder;
+        parsedBeat[parsedBeat.length-1] += rounder;
+        
         return parsedBeat; //return the array of beat cells.
     }
     
@@ -1360,7 +1379,6 @@ window.onload = function() {
                         if(Metronome.validate(this.value())) {
                             this.classList.remove('error');
                             _this.beat = parseBeat(this.value());
-                            console.log(_this.beat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0));
                         }else this.classList.add('error');
                         this.blur();
                     }else{
@@ -2085,6 +2103,10 @@ window.onload = function() {
                 
             if (Array.isArray(this.beat[this.n])) { //check if its pitch modified
                 this.startTime += this.beat[this.n][0] * 60/tempo; //get start time of the next note. Soon as possible to prevent mobile skip bug.
+                if(this.beat[this.n][1] === '0') {//Denotes a rest.
+                    this.n++;
+                    continue;
+                }
                 if(!this.instr[0]) {
                     var freq = parseFloat(this.beat[this.n][1]).toFixed(2);
                     var beat = this.beat[this.n][0];

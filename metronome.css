@@ -127,6 +127,7 @@ button {
     opacity: .88;
     margin-left: 5px;
     margin-right: 5px;
+    /*cursor: default;*/
 }
 .error {
     border: solid 1px red;
