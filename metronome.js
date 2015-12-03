@@ -1287,9 +1287,12 @@ window.onload = function() {
         }
         //modify the last cell to correct for whatever tiny inaccuracy may exist.
         var rounder = parsedBeat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0);
-        rounder = rounder.toFixed(13) - rounder;
-        parsedBeat[parsedBeat.length-1] += rounder;
-        
+        rounder = rounder.toFixed(12) - rounder;
+        if (Array.isArray(parsedBeat[parsedBeat.length-1])) {
+            parsedBeat[parsedBeat.length-1][0] += rounder;
+        }else{
+            parsedBeat[parsedBeat.length-1] += rounder;
+        }
         return parsedBeat; //return the array of beat cells.
     }
     
@@ -2200,11 +2203,12 @@ window.onload = function() {
                         
                         this.osc.start(this.startTimeC + offset+.07);
                         
-                        if (this.beat[this.n]*60/tempo <= .274) //helps with wierd effects from a single sample repeating too quickly
-                            if(!Array.isArray(this.beat[this.n+1]) && randMute === 0 && (((this.startTimeC+this.beat[this.n])*60/tempo)>muteStart))
-                                this.osc.stop(this.startTimeC + offset+.07+(this.beat[this.n]*60/tempo));
-                        /*InstrSamp.played.push(this.osc); //this is to allow cymbal sounds to stop precisely. Not sure if it will cause hangups.
-                        InstrSamp.played.shift();*/
+                        if (this.beat[this.n]*60/tempo <= .274) {//helps with wierd effects from a single sample repeating too quickly
+                            if(!Array.isArray(this.beat[this.n+1]||this.beat[0]) && randMute === 0 && (!setMuteOn||(this.startTime+offset<muteStart))) {
+                                this.osc.stop(this.startTime + offset+.07); //stop it at the start time of the next note.
+                            }
+                        }
+                        
                         delete this.osc;
                     }
                 }
