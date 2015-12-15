@@ -8,11 +8,7 @@ if (in_array($host, array('local', '127.0', '192.1'))) { //determine if host is 
 }
 
 if($local) {
-    define('DSN', 'mysql:dbname=test;host=localhost');
-    define('USER', 'root');
-    define('PASS', '');
+    define('MYSQL', './mysql.inc.php');
 }else{//live
-    define('DSN', 'mysql:dbname=pronzneu_pronome;host=localhost');
-    define('USER', 'pronzneu_aaron');
-    define('PASS', 'raybrown1');
+    define('MYSQL', '../mysql.inc.php'); //SQL config is outside of webdir on live
 }

@@ -4,16 +4,17 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') { //post is the only way to access.
 }
 
 require 'config.inc.php';
+require MYSQL;
 
 $c = file_get_contents('php://input');
 $c = json_decode($c);
-
+/*
 try { 
     $dbc = new PDO(DSN,USER,PASS);
 }
 catch (PDOException $e) {
     exit ('fail');
-}
+}*/
 
 if($c->type === 'getBeat') { //send the beat json to pronome.
     $sql = 'SELECT beats FROM accounts WHERE email=? AND pass=SHA1(?)';

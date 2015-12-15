@@ -13,8 +13,8 @@ window.onload = function() {
     var started = false; //metronomes' state
     var worker = new Worker('metWorker.js'); //this worker handles the setInterval tasks (like scheduling notes).
     var mobile;
-    if (screen.availWidth <= 850)
-        mobile = true;
+    if (screen.availWidth <= 850 || ((screen.availHeight < screen.availWidth) && screen.availHeight <=850))
+        mobile = true; //check for mobile using screen size.
     else mobile = false;
     
     var lookAhead = .1; //the value in secs that sounds are pre-scheduled by.
@@ -1336,7 +1336,7 @@ window.onload = function() {
         this.time = 0; //holds the time at which schd() is called.
         this.startTime = 0; //holds the start time of the next note.
         this.osc; //oscillator
-        var initFreq = metronomes.length ? Metronome.randNote() : 'A4';  //generate a random frequency to assign as the initial pitch.
+        var initFreq = metronomes.length ? Metronome.randNote() : (mobile?'A6':'A4');  //generate a random frequency to assign as the initial pitch.
         this.frequency = Metronome.getFreq(initFreq); //pitch of the beep in hertz.
         this.soloed = false;
         this.muted = false;
@@ -1707,8 +1707,8 @@ window.onload = function() {
         do {
             var a; //the note name
             var d; //octave
-            if(Math.random() >.5) d=5; //determine octave
-            else d=4;
+            if(Math.random() >.5) d=(mobile?6:5); //determine octave
+            else d=(mobile?5:4);
             var notes = ['A','A#','B','C','C#','D','D#','E','F','F#','G','G#'];
             var intervals = [3,4,5,7,8,9] //sonorous intervals
             if((Math.random() <.8) && metronomes[metronomes.length-1].pitchInput.val().search(/\D+/) != -1) { //80% chance to select a sonorous interval.

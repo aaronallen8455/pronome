@@ -8,7 +8,8 @@
 require 'config.inc.php';
 if(isset ($_GET['h'])) {
     $hash = $_GET['h']; //the hashed email string
-    $dbc = new PDO(DSN,USER,PASS);
+    //$dbc = new PDO(DSN,USER,PASS);
+    require MYSQL;
     $sql = 'SELECT email,pass FROM pending WHERE hash=?';
     $stmt = $dbc->prepare($sql);
     $stmt->execute(array($hash));
@@ -55,7 +56,8 @@ if(isset ($_GET['h'])) {
     $hash = $email >> 5;
     $hash = strrev($hash);
     $hash = sha1($hash);
-    $dbc = new PDO(DSN,USER,PASS);
+    //$dbc = new PDO(DSN,USER,PASS);
+    require MYSQL;
     $sql = 'SELECT id FROM accounts WHERE email=?';
     $stmt = $dbc->prepare($sql);
     $stmt->execute(array($email));
