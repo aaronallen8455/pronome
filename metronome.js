@@ -1,6 +1,7 @@
 window.onload = function() {
     window.AudioContext = window.AudioContext || window.webkitAudioContext;
     var context = new AudioContext();
+    context.suspend();
     var gain = context.createGain();
     var tempo = 120; //default tempo
     var metronomes = []; //array that holds the mets
@@ -1091,15 +1092,30 @@ window.onload = function() {
             var startPos = []; //holds group start position(s)
             var endPos = []; //holds group end position(s)
             var end = str.match(/\}[\d.+\-\/*Xx]+/g); //holds all the coeficient expressions.
+            var end = [];
             //populate startPos and endPos:
             var ex;
+            
+            var startPosCounter; //array index of the innermost opening bracket
+            for (var i=0; i<str.length; i++) {
+                if (str[i] === '{') {
+                    startPos.push(i);
+                    startPosCounter = startPos.length -1;
+                }
+                if (str[i] === '}') {
+                    endPos[startPosCounter] = i; //accounts for nested groups
+                    end[startPosCounter] = /\}[\d.+\-\/*Xx]+/.exec(str.slice(i))[0];
+                    startPosCounter--;
+                }
+            }
+            /*
             while((ex = regStart.exec(str)) != null) {
                 startPos.push(ex.index);
             }
             while((ex = regEnd.exec(str)) != null) {
                 endPos.push(ex.index);
             }
-            
+            */
             var count = endPos.length; //the number of groups
             
             for(var i =0; i<count; i++) {
@@ -1107,6 +1123,7 @@ window.onload = function() {
                 if (co.search(/[+\-]/) != -1) { //we need to simplify add/subtract expressions.
                     co = parseBeat(co)[0].toString();
                 }
+                console.log(co);
                 var offset = 0; //keeps track of string length changes.
                 function rep(w,div,exp,pos,all) {
                     pos += offset;
@@ -1116,14 +1133,13 @@ window.onload = function() {
                         expNewL = exp.toString().length;
                         
                         startPos.forEach(function(x,n,a) {
-                            if(n>i) a[n] += 1+co.length+(expNewL - expOldL);
+                            if(n>i && x>pos) a[n] += 1+co.length+(expNewL - expOldL); //x>pos condition allows for nested groups
                         });
                         endPos.forEach(function(x,n,a) {
-                            if(n>=i) a[n] += 1+co.length+(expNewL - expOldL);
+                            if(n>=i && x>pos) a[n] += 1+co.length+(expNewL - expOldL);
                         });
                         
                         offset += 1+co.length+(expNewL - expOldL);
-                        //console.log(i+' '+(w.length+1+co.length+(expNewL - expOldL))+' '+(div+exp+'*'+co).length);
                         return div+exp+'*'+co;
                     }else return w;
                 }
@@ -1336,7 +1352,7 @@ window.onload = function() {
         this.time = 0; //holds the time at which schd() is called.
         this.startTime = 0; //holds the start time of the next note.
         this.osc; //oscillator
-        var initFreq = metronomes.length ? Metronome.randNote() : (mobile?'A6':'A4');  //generate a random frequency to assign as the initial pitch.
+        var initFreq = metronomes.length ? Metronome.randNote() : (mobile?'A6':'A4');  //generate a random frequency to assign as the initial pitch unless its the first nome. Mobile is higher pitched.
         this.frequency = Metronome.getFreq(initFreq); //pitch of the beep in hertz.
         this.soloed = false;
         this.muted = false;
@@ -1708,7 +1724,7 @@ window.onload = function() {
             var a; //the note name
             var d; //octave
             if(Math.random() >.5) d=(mobile?6:5); //determine octave
-            else d=(mobile?5:4);
+            else d=(mobile?5:4); //mobile is raised one octave.
             var notes = ['A','A#','B','C','C#','D','D#','E','F','F#','G','G#'];
             var intervals = [3,4,5,7,8,9] //sonorous intervals
             if((Math.random() <.8) && metronomes[metronomes.length-1].pitchInput.val().search(/\D+/) != -1) { //80% chance to select a sonorous interval.
