@@ -14,7 +14,7 @@ window.onload = function() {
     var started = false; //metronomes' state
     var worker = new Worker('metWorker.js'); //this worker handles the setInterval tasks (like scheduling notes).
     var mobile;
-    if (screen.availWidth <= 850 || ((screen.availHeight < screen.availWidth) && screen.availHeight <=850))
+    if (screen.availWidth <= 750 || ((screen.availHeight < screen.availWidth) && screen.availHeight <=750))
         mobile = true; //check for mobile using screen size.
     else mobile = false;
     
@@ -300,7 +300,7 @@ window.onload = function() {
     
     User.prototype.getBeat = function(remembered) { //download the beat json
         var _this = this;
-        var c = {email: this.email, pass: this.password, type: 'getBeat'};
+        var c = {email: this.email, pass: this.password, type: 'getBeat', remembered: remembered?true:false};
         c = JSON.stringify(c);
         var req = new XMLHttpRequest();
         req.open('POST','pro.php',true);
@@ -332,7 +332,21 @@ window.onload = function() {
                         return false;
                     })();
                 }
+                
+                
                 result = JSON.parse(result);
+                
+                //login succeeded, we request the rm selector/token if needed.
+                if (localStorage.getItem('__rememberMe') === 'requestToken') {
+                    $.post('./rmreq.php',
+                      {email: user.email,
+                      pass: user.password}, function(data) {
+                        //set the selector, token values.
+                        if (data !== 'fail')
+                            localStorage.setItem('__rememberMe', data);
+                    });
+                }
+                
                 if(result == null && beatCount) { //if the account has no beats, we prompt to import local beats.
                     function yes1() {
                         for(var i=0; i<localStorage.length; i++) {
@@ -394,10 +408,11 @@ window.onload = function() {
         updateSaved();
     }
     var user;
-    if(localStorage.getItem('__rememberMe')) { //if the remember cookie is present, create the user from it.
+    if(localStorage.getItem('__rememberMe') && localStorage.getItem('__rememberMe').length === 25) { //if the remember cookie is present, create the user from it.
         var email = localStorage.getItem('__rememberMe').split(',', 2)[0];
         var pass = localStorage.getItem('__rememberMe').split(',', 2)[1];
         user = new User(email, pass, true);
+        //send server the selector and token to login with (email will be the selector, pass is the token).
     }
     
     /*
@@ -782,8 +797,11 @@ window.onload = function() {
                         if(email.val() == '' || pass.val() == '')
                             return;
                         successCall([email.val(),pass.val()]);
-                        if(remember.val() == 1)
-                            localStorage.setItem('__rememberMe', email.val()+','+pass.val());
+                        if(remember.val() == 1) {
+                            //Selector and Token will be assigned if login succeeds
+                            localStorage.setItem('__rememberMe', 'requestToken');
+                            //localStorage.setItem('__rememberMe', email.val()+','+pass.val()); old, unsafe way
+                        }
                     }else{ //normal dialog
                         if (input && input.val() == '')
                             return;
@@ -2174,8 +2192,9 @@ window.onload = function() {
                             this.osc.stop(this.startTimeC + offset + (_cutoff+.37 || this.cutoff+.07)); //'cutoff' prevents popping.
                         }
                         if(_lowPass) {
-                            delete _lowPass;
-                            delete _gainDecay;
+                            _lowPass = undefined;
+                            _gainDecay = undefined;
+                            freq = undefined;
                         }
                     }else{ //if we're using instrument samples
                         this.osc = context.createBufferSource();
@@ -2224,7 +2243,7 @@ window.onload = function() {
                                 this.osc.stop(this.startTime + offset+.07); //stop it at the start time of the next note.
                             }
                         }
-                        
+                        if (instr) instr = undefined;
                         delete this.osc;
                     }
                 }
