@@ -5,6 +5,9 @@ if($_SERVER['REQUEST_METHOD'] != 'POST') { //post is the only way to access.
 
 require 'config.inc.php';
 require MYSQL;
+//start session if not already started
+if (session_status() === PHP_SESSION_NONE)
+    session_start();
 
 $c = file_get_contents('php://input');
 $c = json_decode($c);
@@ -23,7 +26,7 @@ if($c->type === 'getBeat') { //send the beat json to pronome.
         $dbc = null;
         echo $beats;
         exit;
-    }else if ($c->remembered === true) {
+    }else if ($c->remembered === true) { //using rm cookie
         $sql = 'SELECT user_id, token FROM rm_tokens WHERE selector=? AND expires > NOW()';
         $stmt = $dbc->prepare($sql);
         $stmt->execute(array($c->email));
@@ -38,7 +41,6 @@ if($c->type === 'getBeat') { //send the beat json to pronome.
                 //update the rm_token expiration
                 $dbc->exec('UPDATE rm_tokens SET expiration=DATE_ADD(NOW(), INTERVAL 31 DAY) WHERE user_id='.$row['user_id']);
                 //use the session to track this user for setBeat actions
-                session_start();
                 $_SESSION['id'] = $row['user_id'];
                 exit();
             }
@@ -48,7 +50,7 @@ if($c->type === 'getBeat') { //send the beat json to pronome.
 
 else if($c->type === 'setBeat') { //update the db with user supplied beat collection.
     //if user is logged in via a remembered cookie:
-    session_start();
+    
     if (isset($_SESSION['id']) && filter_var($_SESSION['id'], FILTER_VALIDATE_INT, array('min_range'=>1))) {
         $sql = 'UPDATE accounts SET beats=? WHERE id=?';
         $stmt = $dbc->prepare($sql);
