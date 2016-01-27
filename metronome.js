@@ -440,7 +440,7 @@ window.onload = function() {
         if(started && (metronomes.length>1)) //can't change tempo during play if more than 1 nome.
             this.value = tempo;
         else {
-            if(this.value !== '') {
+            if(/^\d+\.?\d*$|^\d*\.\d+$/.test(this.value)) {
                 tempo = this.value;
                 this.style.borderWidth = 0;
                 this.classList.remove('error');
@@ -963,6 +963,7 @@ window.onload = function() {
         $('<button>', {text: 'Export'}).click( function() { //the exporter button
             var beat = Metronome.stringifyBeat(metronomes);
             if(beat)
+                beat = 'http://www.pronome.net?' + tempo + encodeURI(beat); //create URL
                 inOut.val(beat); //export a text representation of each beat layer.
         })
     ).append(
@@ -971,6 +972,8 @@ window.onload = function() {
             if(!started) {
                 var beat = inOut.val();
                 beat = beat.replace(/\n/, '');
+                beat = beat.slice(beat.indexOf('%')); //convert from query string, excluding tempo
+                beat = decodeURI(beat);
                 Metronome.reviveBeat(beat);
             }
         })
@@ -1542,20 +1545,22 @@ window.onload = function() {
         });
         $('<span>').append('Offset:').append(_this.offsetInput).appendTo(_this.div);
         
-        $('<button>', {text: 'X'}).appendTo(_this.div).addClass('close').click(function() { //delete layer
-            var x = _this.div.outerHeight()/2 + parseFloat(mets.style.marginTop.slice(0,-2));
-            _this.stop();
-            _this.div.animate({
-                height: 'hide', padding: 'hide'},{queue:false, duration:240}).delay(0, function() {
-                $(mets).animate({'marginTop': x+1}, 240);
-                //$(window).trigger('resize');
-            });
-            if ((metronomes.filter(function(x) { return x.soloed })).length == 1 && _this.soloed) //if this was the only soloed track
-                metronomes.forEach(function(x,i,a) { if (!a[i].muted) a[i].muteSwitch.gain.value = 1; }); //unmute all.
-            metronomes.splice(metronomes.indexOf(_this), 1);
-            if(!mobile && context.createStereoPanner) setPan();
-            if (metronomes.length == 0) stop();
-        });
+        $('<div>').addClass('closeWrapper').appendTo(_this.div).append( //wraps the delete button to allow vertical centering
+            $('<button>', {text: 'X'}).addClass('close').click(function() { //delete layer
+                var x = _this.div.outerHeight()/2 + parseFloat(mets.style.marginTop.slice(0,-2));
+                _this.stop();
+                _this.div.animate({
+                    height: 'hide', padding: 'hide'},{queue:false, duration:240}).delay(0, function() {
+                    $(mets).animate({'marginTop': x+1}, 240);
+                    //$(window).trigger('resize');
+                });
+                if ((metronomes.filter(function(x) { return x.soloed })).length == 1 && _this.soloed) //if this was the only soloed track
+                    metronomes.forEach(function(x,i,a) { if (!a[i].muted) a[i].muteSwitch.gain.value = 1; }); //unmute all.
+                metronomes.splice(metronomes.indexOf(_this), 1);
+                if(!mobile && context.createStereoPanner) setPan();
+                if (metronomes.length == 0) stop();
+            })
+        );
         
         $('<button>', {text: 'S'}).appendTo(_this.div).addClass('solo').click(function() { //solo button
             if (metronomes.some(function(x) { return x.soloed })) { //if any layers are soloed
@@ -2305,7 +2310,15 @@ window.onload = function() {
     }
     
     if(location.search) { //if theres a query, we extract the beat from it
-        var beat = decodeURI(location.href.slice(location.href.indexOf('?')+1));
+        var t;
+        if (t = location.href.match(/\?([\d.]+)/)) {
+            t = t[1]; //get the tempo
+        }
+        if (t) {
+            tempoInput.value = t;
+            tempoInput.onchange(); //set the tempo
+        }
+        var beat = decodeURI(location.href.slice(location.href.indexOf('%'))); //get beat portion
         Metronome.reviveBeat(beat);
     }else{
         metronomes.push(new Metronome); //otherwise, add a default metronome.
