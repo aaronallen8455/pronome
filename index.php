@@ -15,6 +15,11 @@ header("Cache-Control: no-cache");
     </head>
 <body>
     <div id="mets">
+        <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+<input type="hidden" name="cmd" value="_s-xclick">
+<input type="hidden" name="hosted_button_id" value="8BHER43CCWSNY">
+<button name="submit" class="donateButton" title="Help keep ProNome alive! via PayPal">[Donate]</button>
+</form>
         <span>ProNome</span>
         <div id="controls"><div id="controlWrap">
     <button id="new">Add Layer</button>
@@ -24,5 +29,9 @@ header("Cache-Control: no-cache");
         <span>Master Volume:<input type="text" value="5" id="mvol" style="width: 30px;"></span>
         <button id="moreOptns">[more]</button>
     </div></div></div>
+    
+    
+
+    
     </body>
 </html>

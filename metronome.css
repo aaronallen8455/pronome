@@ -275,7 +275,7 @@ code {
     padding: 0px;
     position: absolute;
     right: 11px;
-    top: 11px;
+    top: 4px;
     width: 20px;
     height: 15px;
     color: #EFF0DF;
@@ -365,6 +365,18 @@ code {
 }
 .longBeat {
     word-break: break-all;
+}
+.donateButton {
+    line-height: 0;
+    padding: 0px;
+    position: absolute;
+    right: 11px;
+    top: 20px;
+    width: 53px;
+    height: 15px;
+    color: #EFF0DF;
+    background-color: transparent;
+    border: solid 0px black;
 }
 
 @media screen and (max-width: 610px) {

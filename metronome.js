@@ -1171,7 +1171,8 @@ window.onload = function() {
             str = str.replace(regEnd, '');
         }//end of group multiply if
         
-        str = str.replace(/\[\s*\[/g, '[0,['); //need to insert 0's between closley nested reps
+        while (str.match(/\[\s*\[/))
+            str = str.replace(/\[\s*\[/, '[0,['); //need to insert 0's between closley nested reps
         str = str.replace(/\]([^,]+)\]/g, ']$1,0]'); //same as above but for the closing bracket.
         str = str.replace(/\]([^,|]+)[|]/g, ']$1,0|'); //necessary for having loops exits (|) that are next to a brace ].
         str = str.replace(/x/gi, '*'); //option to use 'x' for multiplication.
@@ -1802,7 +1803,7 @@ window.onload = function() {
             nome.instr[2] = Metronome.randNote();
             nome.instr[3] = '0';
         }
-        setPan();
+        if (!mobile || !context.createStereoPanner) setPan();
         $(window).trigger('resize');
     }
     
