@@ -1,6 +1,11 @@
 window.onload = function() {
     window.AudioContext = window.AudioContext || window.webkitAudioContext;
-    var context = new AudioContext();
+    try {
+        var context = new AudioContext();
+    }
+    catch(e) { //browser doesn't support webAudio
+        msg('It appears that you\'er using an incompatible browser. Please install the latest version of Chrome, Firefox, or Safari and try again.', false, true, false);
+    }
     context.suspend();
     var gain = context.createGain();
     var tempo = 120; //default tempo
@@ -51,8 +56,9 @@ window.onload = function() {
             })
         );//create a div window with the instructions and buttons to close the window.
     });
-    
-    var loginButton = $('<button>', {text: '[log-in]'}).addClass('loginButton').appendTo(mets).click(logIn);
+    //append login button if device is online
+    if (navigator.onLine)
+        var loginButton = $('<button>', {text: '[log-in]'}).addClass('loginButton').appendTo(mets).click(logIn);
     function logIn() {
         msg('Enter your e-mail and password to access your account.<br /> New user? Register ', 'login', 'Log In', 'true', yes);
         function yes(c) {
@@ -408,7 +414,7 @@ window.onload = function() {
         updateSaved();
     }
     var user;
-    if(localStorage.getItem('__rememberMe') && localStorage.getItem('__rememberMe').length === 25) { //if the remember cookie is present, create the user from it.
+    if(localStorage.getItem('__rememberMe') && localStorage.getItem('__rememberMe').length === 25 && navigator.onLine) { //if the remember cookie is present, create the user from it.
         var email = localStorage.getItem('__rememberMe').split(',', 2)[0];
         var pass = localStorage.getItem('__rememberMe').split(',', 2)[1];
         user = new User(email, pass, true);
@@ -765,6 +771,12 @@ window.onload = function() {
             f.append('Password:<br />');
             pass = $('<input>').attr('type', 'password').appendTo(f);
             p.append(f);
+            f.append($('<a href="#">').text('Forgot Password?').click(function() {
+                //display the Forgot Password form.
+                close();
+                msg('<iframe src="forgot.php"></iframe>', false, 'Done');
+                return false;
+            }));
             p.append('<br /><br />');
             p.append('Remember Me:');
             remember = $('<input type="checkbox">').val(0).change(function() { //stores login info to auto-login
