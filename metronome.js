@@ -46,15 +46,22 @@ window.onload = function() {
     request.send(null);
     
     $('<button>', {text: '[?]'}).attr('title', 'Help').addClass('helpButton').appendTo(mets).click(function() { //the help button
-        $('<div>').addClass('help').appendTo(mets).append(instructions).append(
-            $('<button>', {text: 'Close'}).addClass('closeHelp').click(function() {
-                $(this.parentElement).remove();
-            })
-        ).append(
-            $('<button>', {text: 'Close', css:{position:'absolute',top:'5px',right:'5px'}}).addClass('closeHelp').click(function() {
-                $(this.parentElement).remove();
-            })
-        );//create a div window with the instructions and buttons to close the window.
+        //scroll instructions into view
+        //prevent opening multiple dialogs
+        if (!document.getElementsByClassName('help').length) {
+            var instr = $('<div>').addClass('help').appendTo(controls).append(instructions).append(
+                $('<button>', {text: 'Close'}).addClass('closeHelp').click(function() {
+                    $(this.parentElement).remove();
+                    $(window).trigger('resize');
+                })
+            ).append(
+                $('<button>', {text: 'Close', css:{position:'absolute',top:'5px',right:'5px'}}).addClass('closeHelp').click(function() {
+                    $(this.parentElement).remove();
+                    $(window).trigger('resize');
+                })
+            );//create a div window with the instructions and buttons to close the window.
+            window.scrollTo(0, instr.offset().top);
+        }
     });
     //append login button if device is online
     if (navigator.onLine)

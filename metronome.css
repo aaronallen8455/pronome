@@ -298,10 +298,10 @@ code {
 .help {
     padding: 20px;
     text-align: left;
-    position: absolute;
+    position: relative;
     background-color: azure;
-    top: -18px;
-    left: -18px;
+    /*top: -18px;
+    left: -18px;*/
     line-height: 1.5;
 }
 
@@ -329,6 +329,7 @@ code {
     padding: 4px;
     padding-bottom: 25px;
     text-align: right;
+    z-index: 1;
 }
 .options button {
     margin: 1px;

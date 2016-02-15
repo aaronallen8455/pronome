@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_GET['t'])) {
                 $headers = "From: ProNome <$from>";
                 $url = 'http://pronome.net/forgot.php?t=' . $token;
                 $body = <<<EOT
-This email is in response to a forgotten password reset request at ProNome. If you did make this request, click the following link to be able to access your account:
+This email is in response to a forgotten password reset request at ProNome. If you did make this request, click the following link to be able to reset your password:
 $url
 If you do not use this link to reset your password within 15 minutes, you'll need to request a password reset again.
 If you have _not_ forgotten your password, you can safely ignore this message and you will still be able to login with your existing password.
