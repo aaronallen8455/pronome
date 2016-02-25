@@ -19,7 +19,7 @@ window.onload = function() {
     var started = false; //metronomes' state
     var worker = new Worker('metWorker.js'); //this worker handles the setInterval tasks (like scheduling notes).
     var mobile;
-    if (screen.availWidth <= 750 || ((screen.availHeight < screen.availWidth) && screen.availHeight <=750))
+    if (screen.availWidth <= 750 || ((screen.availHeight < screen.availWidth) && screen.availHeight <=720))
         mobile = true; //check for mobile using screen size.
     else mobile = false;
     
@@ -427,26 +427,6 @@ window.onload = function() {
         user = new User(email, pass, true);
         //send server the selector and token to login with (email will be the selector, pass is the token).
     }
-    
-    /*
-    User.prototype.login = function() { //check login credentials.
-        var c = {'email': this.email, 'pass': this.password, 'type': 'login'};
-        var req = new XMLHttpRequest();
-        req.open('POST','pro.php',true);
-        req.setRequestHeader('Content-type', 'application/json');
-        req.onreadystatechange = function() {
-            if(req.readyState === 4) {
-                var result = req.responseText;
-                if(result === 'fail') {
-                    return false;
-                }
-                else {
-                    return true;
-                }
-            }
-        };
-        req.send(JSON.stringify(c));
-    }*/
     
     
     tempoInput.onchange = function() {
@@ -1131,10 +1111,9 @@ window.onload = function() {
             var regEnd = /\}[\d.+\-\/*Xx]+/g; //gets closing brace of all groups
             var startPos = []; //holds group start position(s)
             var endPos = []; //holds group end position(s)
-            var end = str.match(/\}[\d.+\-\/*Xx]+/g); //holds all the coeficient expressions.
+            //var end = str.match(/\}[\d.+\-\/*Xx]+/g); //holds all the coeficient expressions.
             var end = [];
             //populate startPos and endPos:
-            var ex;
             
             var startPosCounter; //array index of the innermost opening bracket
             for (var i=0; i<str.length; i++) {
@@ -1168,9 +1147,9 @@ window.onload = function() {
                 function rep(w,div,exp,pos,all) {
                     pos += offset;
                     if(pos >= startPos[i] && pos < endPos[i]) { //if the cell is in a group
-                        expOldL = exp.toString().length;
+                        var expOldL = exp.toString().length;
                         exp = parseBeat(exp)[0]; //evaluate the expression
-                        expNewL = exp.toString().length;
+                        var expNewL = exp.toString().length;
                         
                         startPos.forEach(function(x,n,a) {
                             if(n>i && x>pos) a[n] += 1+co.length+(expNewL - expOldL); //x>pos condition allows for nested groups
