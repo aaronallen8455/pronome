@@ -44,7 +44,7 @@ if($c->type === 'getBeat') { //send the beat json to pronome.
                 $_SESSION['id'] = $row['user_id'];
                 exit();
             }
-        }
+        }else exit('fail');
     }
 }
 

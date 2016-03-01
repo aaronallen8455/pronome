@@ -330,7 +330,8 @@ window.onload = function() {
                     function yes() {
                         loginButton.trigger('click');
                     }
-                    msg('Incorrect email or password.', false, 'Try Again',true,yes);
+                    if (!remembered)
+                        msg('Incorrect email or password.', false, 'Try Again',true,yes);
                     user = false;
                     localStorage.removeItem('__rememberMe');
                     return;
@@ -350,17 +351,18 @@ window.onload = function() {
                 result = JSON.parse(result);
                 
                 //login succeeded, we request the rm selector/token if needed.
-                if (localStorage.getItem('__rememberMe') === 'requestToken') {
+                if (localStorage.getItem('__rememberMe') && remembered) {
                     $.post('./rmreq.php',
                       {email: user.email,
                       pass: user.password}, function(data) {
                         //set the selector, token values.
-                        if (data !== 'fail')
-                            localStorage.setItem('__rememberMe', data);
+                        if (data !== 'fail') {
+                            //localStorage.setItem('__rememberMe', data);
+                        }
                     });
                 }
                 
-                if(result == null && beatCount) { //if the account has no beats, we prompt to import local beats.
+                if(result == null && beatCount && !remembered) { //if the account has no beats, we prompt to import local beats.
                     function yes1() {
                         for(var i=0; i<localStorage.length; i++) {
                             var name = localStorage.key(i);
