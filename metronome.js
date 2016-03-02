@@ -6,7 +6,12 @@ window.onload = function() {
     catch(e) { //browser doesn't support webAudio
         msg('It appears that you\'er using an incompatible browser. Please install the latest version of Chrome, Firefox, or Safari and try again.', false, true, false);
     }
-    context.suspend();
+    try {
+        context.suspend();
+    }
+    catch(e) {
+    }
+    
     var gain = context.createGain();
     var tempo = 120; //default tempo
     var metronomes = []; //array that holds the mets
@@ -66,6 +71,7 @@ window.onload = function() {
     //append login button if device is online
     if (navigator.onLine)
         var loginButton = $('<button>', {text: '[log-in]'}).addClass('loginButton').appendTo(mets).click(logIn);
+    
     function logIn() {
         msg('Enter your e-mail and password to access your account.<br /> New user? Register ', 'login', 'Log In', 'true', yes);
         function yes(c) {
@@ -2326,5 +2332,11 @@ window.onload = function() {
         $(window).trigger('resize');
     }
     
-    var samples = new InstrSamp(); //start buffering samples.
+    try {
+        var samples = new InstrSamp(); //start buffering samples.
+    }
+    catch(e) {
+        msg(e, false, true, false);
+    }
+    
 }
