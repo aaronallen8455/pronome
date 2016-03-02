@@ -357,13 +357,13 @@ window.onload = function() {
                 result = JSON.parse(result);
                 
                 //login succeeded, we request the rm selector/token if needed.
-                if (localStorage.getItem('__rememberMe') && remembered) {
+                if (localStorage.getItem('__rememberMe') && (remembered || localStorage.getItem('__rememberMe') === 'requestToken')) {
                     $.post('./rmreq.php',
                       {email: user.email,
                       pass: user.password}, function(data) {
                         //set the selector, token values.
                         if (data !== 'fail') {
-                            //localStorage.setItem('__rememberMe', data);
+                            localStorage.setItem('__rememberMe', data);
                         }
                     });
                 }
