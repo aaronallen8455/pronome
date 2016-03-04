@@ -379,6 +379,23 @@ code {
     background-color: transparent;
     border: solid 0px black;
 }
+.savedBeatOption {
+    padding: 5px;
+    background-image: linear-gradient(to bottom, #667587, #8799a9);
+    border: outset 2px #69757f;
+}
+.savedBeatOption:hover {
+    color: aquamarine;
+}
+.savedBeatWrapper {
+    color: bisque;
+    position: absolute;
+    z-index: 1000;
+    background-color: #292929;
+    overflow: auto;
+    border: solid 4px #292929;
+    border-radius: 4px;
+}
 
 @media screen and (max-width: 610px) {
     #mets {

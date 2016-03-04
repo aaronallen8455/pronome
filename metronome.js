@@ -6,13 +6,19 @@ window.onload = function() {
     catch(e) { //browser doesn't support webAudio
         msg('It appears that you\'er using an incompatible browser. Please install the latest version of Chrome, Firefox, or Safari and try again.', false, true, false);
     }
+    
+    if (!context.createGain) //resolve some compatability issues
+        context.createGain = context.createGainNode;
+    if (!AudioParam.prototype.setTargetAtTime)
+        AudioParam.prototype.setTargetAtTime = AudioParam.prototype.webkitsetTargetAtTime;
+    
     try {
-        context.suspend();
+        context.suspend(); //causes problems for some browsers
     }
     catch(e) {
     }
     
-    var gain = context.createGain();
+    var gain = context.createGain(); //master volume
     var tempo = 120; //default tempo
     var metronomes = []; //array that holds the mets
     var mets = document.getElementById('mets'); //div that holds the met elements.
@@ -195,7 +201,7 @@ window.onload = function() {
         var a = new Audio();
         var canPlayOgg = true;
         if(!a.canPlayType("application/ogg")) canPlayOgg = false;
-        delete a;
+        a = null;
         InstrSamp.array.forEach(function(x,i,a) { //create a buffer node for each sound file.
             var path;
             if(canPlayOgg) //if apple, use wav files
@@ -310,10 +316,6 @@ window.onload = function() {
         this.email = email;
         this.password = pw;
         this.beat = {}; //beats are stored as name: 'jsoned beat'
-        this.isAuthorized = false;
-        /*if (this.login()) //check credentials.
-            this.isAuthorized = true;
-        else delete this; //login failed, delete user obj*/
         this.getBeat(remembered)
     }
     
@@ -849,16 +851,131 @@ window.onload = function() {
     
     
     var savedBeats = $('<select>', {css: { width: 165, marginBottom: '3px'}}); //holds the saved beats.
-    
+    //build custom select with a filter input
+    savedBeats.on('mousedown', function(e) {
+        //prevent selection box from opening
+        e.preventDefault();
+        this.blur();
+        window.focus();
+    });
+    savedBeats.on('mousedown', savedClickHandler);
+    function savedClickHandler(e) {
+        var _this = this;
+        //do nothing if theres no saved beats
+        if (this.children.length === 1) return false;
+        //remove this handler and add the close handler to document.
+        $(this).off('mousedown', savedClickHandler);
+        document.addEventListener('click', closeClick, true);
+        function closeClick(e) {
+            if (e.target === _this || e.target === searchInput.get(0)){
+                e.stopPropagation();
+            }else{
+                wrapper.remove();
+                document.removeEventListener('click', closeClick);
+                _this.addEventListener('mousedown', savedClickHandler);
+            }
+        }
+        //create our own selection box with search
+        var searchInput = $('<input>').css({ //the search input
+            margin: 0
+        }).attr({type: 'test', placeholder: 'Filter...'}).on('input', function(){
+            //make regexp from input
+            var regexp;
+            //escape special chars
+            var str = this.value.replace(/([\(\)\[\].\\\-*?!])/, '\\$1');
+            if (this.value.length <= 3) {
+                regexp = new RegExp('^' + str, 'i');
+            }else regexp = new RegExp(str, 'i');
+            //draw options
+            showOptions(regexp);
+        });
+
+        var optionsWrapper = $('<div>');
+
+        var wrapper = $('<div>').addClass('savedBeatWrapper').append(
+            searchInput).append('<div>Select a Saved Beat:</div>').append(optionsWrapper);
+
+        //an object to represent an option element
+        function Option(ele) {
+            this.name = ele.innerHTML;
+            //italicize if is selected
+            if (ele.value === _this.value) this.name = '<i>' + this.name + '</i>';
+            //create a div container
+            this.div = $('<div>').addClass('savedBeatOption').html(
+                this.name).appendTo(optionsWrapper).on('mousedown', function(){
+                _this.value = ele.value;
+                //some mobiles need to artificially close the menu
+                if (mobile) {
+                    wrapper.remove();
+                    document.removeEventListener('click', closeClick);
+                    _this.addEventListener('mousedown', savedClickHandler);
+                }
+            });
+        }
+        //a function for displaying options with a regexp filter
+        function showOptions(regexp) {
+            //clear the optionsWrapper
+            optionsWrapper.empty();
+            var options = [];
+            for (var i=0; i<_this.children.length; i++) {
+                if (_this.children[i].value === 'none') continue;
+                if (regexp) { //test with regexp
+                    if (!regexp.test(_this.children[i].textContent)) {
+                        if (i === _this.children.length-1 && options.length === 0)
+                            optionsWrapper.append('<div><i>No Results</i></div>');
+                        continue;
+                    }
+                }
+                options.push(new Option(_this.children[i]));
+            }
+            //if not mobile, position element above or below based on height of wrapper
+            if (!mobile) {
+                var height = wrapper.outerHeight();
+                //set max height
+                if (height > 500) {
+                    height = 500;
+                    wrapper.height(500-(wrapper.outerHeight()-wrapper.height()));
+                }
+                var bb = _this.getBoundingClientRect();
+                //position below if theres space
+                if (window.innerHeight - bb.bottom > height) {
+                    wrapper.css({
+                        top: bb.top+_this.offsetHeight+window.scrollY,
+                        left: bb.left
+                    });
+                }else{ //otherwise position above
+                    wrapper.css({top: bb.top-height+window.scrollY, left: bb.left});
+                }
+            }else{
+                //fill screen for mobile
+                wrapper.css({
+                    top: 0,
+                    left: 0,
+                    width: '80%',
+                    height: '90%',
+                    border: 'none',
+                    marginLeft: '10%',
+                    marginTop: '10%',
+                    position: 'fixed',
+                    fontSize: '1.3em'
+                });
+                searchInput.css('fontSize', '1em');
+            }
+        }
+        //add each beat item
+        document.body.appendChild(wrapper.get(0));
+        showOptions();
+    }
+
     function updateSaved() { //update the list of saved beats. order them alphabetically.
         if(!user) { //if we're using local storage.
             if (localStorage.length === 0) {
                 savedBeats.empty().append(
-                $('<option>').attr('value', 'none').html('<i>(No Saved Beats)</i>')
+                    $('<option>').attr('value', 'none').html('<i>(No Saved Beats)</i>')
                 );
             }else{
                 savedBeats.empty().append(
-                $('<option>').attr('value', 'none').html('<i>Select a Saved Beat:</i>')
+                    $('<option>').attr('value', 'none').html('<i>Select a Saved Beat:</i>')
                 );
             }
             for (var i=0; i<localStorage.length; i++) {
@@ -1485,7 +1602,7 @@ window.onload = function() {
             if(simpleBeep) _this.lowPass.frequency.value = _this.frequency;
             else _this.lowPass.frequency.value = _this.frequency*4;
         });
-        
+
         this.instr = [false, 'pitch', 'A4', '0']; //whether or not an instrument sample is being used.
         this.instrInput = $('<select>').val('pitch').append(
             [$('<option>').html('<b>Pitch</b>').attr('value', 'pitch'),
@@ -1756,7 +1873,7 @@ window.onload = function() {
             if(Math.random() >.5) d=(mobile?6:5); //determine octave
             else d=(mobile?5:4); //mobile is raised one octave.
             var notes = ['A','A#','B','C','C#','D','D#','E','F','F#','G','G#'];
-            var intervals = [3,4,5,7,8,9] //sonorous intervals
+            var intervals = [3,4,5,7,8,9]; //sonorous intervals
             if((Math.random() <.8) && metronomes[metronomes.length-1].pitchInput.val().search(/\D+/) != -1) { //80% chance to select a sonorous interval.
                 a = notes.indexOf(metronomes[metronomes.length-1].pitchInput.val().match(/\D+/)[0])+intervals[Math.floor(Math.random()*6)];
                 if(a>11) a -=12;
@@ -1765,7 +1882,7 @@ window.onload = function() {
             else a = notes[Math.floor(Math.random()*12)]; //otherwise pick a random note.
         }while (metronomes.some(function(x){return x.pitchInput.val()==a+d;}) && metronomes.length<24); //don't repeat pitches.
         return a+d;
-    }
+    };
     
     Metronome.stringifyBeat = function(metronomes) { //returns a beat as JSON string for saving/exporting.
         var result = [];
@@ -1787,14 +1904,14 @@ window.onload = function() {
             }
         }
         return JSON.stringify(result);
-    }
+    };
     
     Metronome.reviveBeat = function(beat) { //import a beat from a JSON encoded beat.
         beat = $.parseJSON(beat);
         for (var i in beat) {
-            var orig = beat[i]
+            var orig = beat[i];
             orig.beat = orig.beat.replace(/\s/g, ''); //remove whitespace from pre-color era beats.
-            var nome = new Metronome()
+            var nome = new Metronome();
             metronomes.push(nome);
             //nome.beatInput.val(orig.beat).triggerHandler('change');
             nome.beatInput.val(orig.beat).triggerHandler('input');
@@ -1811,7 +1928,7 @@ window.onload = function() {
         }
         if (!mobile || !context.createStereoPanner) setPan();
         $(window).trigger('resize');
-    }
+    };
     
     Metronome.prototype.start = function() {
         var _this = this;
@@ -1821,14 +1938,14 @@ window.onload = function() {
         this.valve.connect(this.analyser);
         this.schd();
         if(visPulse)this.visualizer();
-    }
+    };
     
     Metronome.prototype.stop = function() {
         this.n = 0;
         this.valve.disconnect(); //a way to stop instr samples.
         
         //this.valve.gain.value = 0;
-    }
+    };
     
     Metronome.prototype.colorBeat = function(ele,sel) { //colors the beat syntax of 'ele'. if sel, don't place the cursor.
         try {
@@ -1875,7 +1992,7 @@ window.onload = function() {
             current = current.slice(0,index) + '&' + current.slice(index); //& is the carret position.
         
         //ele.setAttribute('contenteditable', 'false');
-        var con = false //used to continue the back part of a () or @ if needed.
+        var con = false; //used to continue the back part of a () or @ if needed.
         var childCount = 0; //the child element that contains the caret
         var node = false; //the position of the carret within the child element.
 
@@ -2038,7 +2155,7 @@ window.onload = function() {
         this.beatInput.old = ele.innerHTML;//current;//ele.innerHTML.replace(/<.+?>/g, '');
         this.beatInput.working = false;
         
-    }
+    };
     
     Metronome.prototype.inputSlide = function(slide) {
         if(slide === undefined) slide = true;
@@ -2120,7 +2237,7 @@ window.onload = function() {
                 x[1] = x[3] = x[4].offsetTop;
             });
         }
-    }
+    };
     
     
     Metronome.prototype.visualizer = function() { //creates the visual pulse effect
@@ -2140,7 +2257,7 @@ window.onload = function() {
             requestAnimationFrame(vis);
         }
         vis();
-    }
+    };
     
     Metronome.prototype.schd = function(e) { //schedules the notes ahead of time. this function is called every 25 ms while playing.
         this.time = context.currentTime;
@@ -2262,7 +2379,7 @@ window.onload = function() {
             }
             this.n++;
         }
-    }
+    };
     
     var loadingCanvas = document.createElement('canvas'); //the loading bar for samples buffering.
     loadingCanvas.setAttribute('height', '150px'); //has to be 150px bc of chrome bug.
@@ -2339,4 +2456,4 @@ window.onload = function() {
         msg(e, false, true, false);
     }
     
-}
+};
