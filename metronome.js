@@ -10,9 +10,11 @@ window.onload = function() {
     if (!context.createGain)
         context.createGain = context.createGainNode;
     if (!AudioParam.prototype.setTargetAtTime)
-        AudioParam.prototype.setTargetAtTime = AudioParam.prototype.webkitsetTargetAtTime;
-    if (!AudioBufferSourceNode.prototype.start)
+        AudioParam.prototype.setTargetAtTime = AudioParam.prototype.webkitsetTargetAtTime || AudioParam.prototype.setTargetValueAtTime;
+    if (!AudioBufferSourceNode.prototype.start) {
         AudioBufferSourceNode.prototype.start = AudioBufferSourceNode.prototype.noteOn;
+        AudioBufferSourceNode.prototype.stop = AudioBufferSourceNode.prototype.noteOff;
+    }
     
     try {
         context.suspend(); //causes problems for some browsers
@@ -79,11 +81,13 @@ window.onload = function() {
     //append login button if device is online
     if (navigator.onLine)
         var loginButton = $('<button>', {text: '[log-in]'}).addClass('loginButton').appendTo(mets).click(logIn);
-    
+
+    var loginWait = null; //holds the please wait message
     function logIn() {
         msg('Enter your e-mail and password to access your account.<br /> New user? Register ', 'login', 'Log In', 'true', yes);
         function yes(c) {
-            user = new User(c[0], c[1]) //log the user in
+            user = new User(c[0], c[1]); //log the user in
+            loginWait = msg('Please Wait...');
             document.body.style.cursor = 'wait'; //show user that we are waiting for login
             document.getElementsByTagName('html')[0].style.cursor = 'wait';
         }
@@ -113,6 +117,8 @@ window.onload = function() {
         if (metronomes.length === 0) return false;
         if (started) return false;
         newButton.setAttribute('disabled', true); //can't add new layers during play.
+        starter.setAttribute('disabled', true);
+        stopper.removeAttribute('disabled');
         if (context.state === 'suspended') {
             context.resume().then(_start); //dont continue until context is resumed.
         }else
@@ -144,6 +150,7 @@ window.onload = function() {
     };
     
     stopper.onclick = stop;
+    stopper.setAttribute('disabled', true);
     
     var chrInter; //holds interval of 'noise' emission for chrome mobile bug.
     function stop() {
@@ -154,6 +161,8 @@ window.onload = function() {
         worker.postMessage({'s':'stop'});
         setMuteStop();
         newButton.removeAttribute('disabled'); //enable the new layer button
+        starter.removeAttribute('disabled');
+        stopper.setAttribute('disabled', true);
         if(navigator.userAgent.indexOf('Silk') == -1) setTimeout(function(){if(!started)context.suspend();},5000); //save battery
         if(mobile && navigator.userAgent.indexOf('Chrome') != -1) //bug workaround for mobile chrome.
             chrInter = setInterval(function() {
@@ -332,6 +341,7 @@ window.onload = function() {
         req.onreadystatechange = function() {
             if(req.readyState === 4) {
                 document.body.style.cursor = ''; //done waiting
+                loginWait.close();
                 document.getElementsByTagName('html')[0].style.cursor = '';
                 
                 var result = req.responseText;
@@ -738,7 +748,7 @@ window.onload = function() {
         });
         //metronomes.forEach(function(x) { x.beatInput.trigger('input') }); //resize the beat input if needed.
     };
-    
+
     function msg(str, inputField, ok, cancel, successCall, failCall) { //dialog creator.
         var back = $('<div>').css({ //darkens the background.
             position: 'absolute',
@@ -849,6 +859,11 @@ window.onload = function() {
             back.remove();
         }
         resizer();
+        return {
+            div: _div,
+            back: back,
+            close: close
+        };
     }
     
     
@@ -1488,8 +1503,8 @@ window.onload = function() {
         this.valve = context.createGain();
         this.valve.connect(this.analyser);
         
-        this.lowPass = context.createBiquadFilter() || context.webkitcreateBiquadFilter();
-        this.lowPass.type = 'lowpass';
+        this.lowPass = context.createBiquadFilter?context.createBiquadFilter():context.webkitcreateBiquadFilter();
+        this.lowPass.type = this.lowPass.LOWPASS || 'lowpass';
         if(simpleBeep) this.lowPass.frequency.value = 440;
         else this.lowPass.frequency.value = 440*4;
         this.lowPass.Q.value = 1;
@@ -1533,10 +1548,10 @@ window.onload = function() {
             else{
                 return _this.beatInput.html().replace(/<.+?>/g, '');
             }
-        }
+        };
         this.beatInput.get(0).value = function() {
             return _this.beatInput.val();
-        }
+        };
         this.beatInput.working = false; //prevent blur event from firing while coloring the beat which causes bluring.
         if(mobile) this.beatInput.blurOff = false; //don't fire the blur event for the blur that occurs after coloring.
         this.beatInput.get(0).addEventListener('blur', function(e) { //parse beat on blur
@@ -2281,8 +2296,8 @@ window.onload = function() {
                 if(!this.instr[0]) {
                     var freq = parseFloat(this.beat[this.n][1]).toFixed(2);
                     var beat = this.beat[this.n][0];
-                    var _lowPass = context.createBiquadFilter() || context.webkitcreateBiquadFilter(); //we need a special LP for the diff pitch.
-                    _lowPass.type = 'lowpass'
+                    var _lowPass = context.createBiquadFilter?context.createBiquadFilter():context.webkitcreateBiquadFilter(); //we need a special LP for the diff pitch.
+                    _lowPass.type = _lowpass.LOWPASS || 'lowpass';
                     _lowPass.Q.value = 1;
                     _lowPass.connect(this.analyser);
                     if(simpleBeep) {
