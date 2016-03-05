@@ -6,11 +6,13 @@ window.onload = function() {
     catch(e) { //browser doesn't support webAudio
         msg('It appears that you\'er using an incompatible browser. Please install the latest version of Chrome, Firefox, or Safari and try again.', false, true, false);
     }
-    
-    if (!context.createGain) //resolve some compatability issues
+    //resolve some compatibility issues
+    if (!context.createGain)
         context.createGain = context.createGainNode;
     if (!AudioParam.prototype.setTargetAtTime)
         AudioParam.prototype.setTargetAtTime = AudioParam.prototype.webkitsetTargetAtTime;
+    if (!AudioBufferSourceNode.prototype.start)
+        AudioBufferSourceNode.prototype.start = AudioBufferSourceNode.prototype.noteOn;
     
     try {
         context.suspend(); //causes problems for some browsers
@@ -761,9 +763,9 @@ window.onload = function() {
                 return false;
             });
             var p = $('<p>').appendTo(_div.children(0)).css('textAlign', 'left').css('padding-left', '20px');
-            var f = $('<form>');
-            f.append('E-mail:<br />');
-            email = $('<input>').attr('type', 'email').attr('spellcheck',false).appendTo(f).focus();
+            var f = $('<form action="" method="post">');
+            f.append($('<label for="emailInput">E-mail:</label>').css('display', 'block'));
+            email = $('<input>').attr('id', 'emailInput').attr('type', 'email').attr('spellcheck',false).appendTo(f).focus();
             f.append('<br />');
             f.append('Password:<br />');
             pass = $('<input>').attr('type', 'password').appendTo(f);
@@ -865,20 +867,23 @@ window.onload = function() {
         if (this.children.length === 1) return false;
         //remove this handler and add the close handler to document.
         $(this).off('mousedown', savedClickHandler);
+
         document.addEventListener('click', closeClick, true);
+        //window.addEventListener('resize', closeClick, false); //close on resize
         function closeClick(e) {
             if (e.target === _this || e.target === searchInput.get(0)){
                 e.stopPropagation();
             }else{
-                wrapper.remove();
+                wrapper.fadeOut(100, function(){this.remove()});
                 document.removeEventListener('click', closeClick);
                 _this.addEventListener('mousedown', savedClickHandler);
             }
         }
         //create our own selection box with search
         var searchInput = $('<input>').css({ //the search input
-            margin: 0
-        }).attr({type: 'test', placeholder: 'Filter...'}).on('input', function(){
+            margin: 0,
+            width: '95%'
+        }).attr({type: 'test', placeholder: 'Search Filter...'}).on('input', function(){
             //make regexp from input
             var regexp;
             //escape special chars
@@ -893,7 +898,7 @@ window.onload = function() {
         var optionsWrapper = $('<div>');
 
         var wrapper = $('<div>').addClass('savedBeatWrapper').append(
-            searchInput).append('<div>Select a Saved Beat:</div>').append(optionsWrapper);
+            searchInput).append('<div>Select a Beat:</div>').append(optionsWrapper).fadeIn(100);
 
         //an object to represent an option element
         function Option(ele) {
@@ -930,22 +935,20 @@ window.onload = function() {
             }
             //if not mobile, position element above or below based on height of wrapper
             if (!mobile) {
+                wrapper.css('height', 'auto');
                 var height = wrapper.outerHeight();
+                console.log(height);
                 //set max height
-                if (height > 500) {
-                    height = 500;
-                    wrapper.height(500-(wrapper.outerHeight()-wrapper.height()));
+                if (height > 250) {
+                    height = 250;
+                    wrapper.css('height', 250-(wrapper.outerHeight()-wrapper.height()));
                 }
+
                 var bb = _this.getBoundingClientRect();
-                //position below if theres space
-                if (window.innerHeight - bb.bottom > height) {
-                    wrapper.css({
-                        top: bb.top+_this.offsetHeight+window.scrollY,
-                        left: bb.left
-                    });
-                }else{ //otherwise position above
-                    wrapper.css({top: bb.top-height+window.scrollY, left: bb.left});
-                }
+                //position below
+                wrapper.css({
+                    top: _this.offsetHeight + _this.offsetTop
+                });
             }else{
                 //fill screen for mobile
                 wrapper.css({
@@ -953,7 +956,7 @@ window.onload = function() {
                     left: 0,
                     width: '80%',
                     height: '90%',
-                    border: 'none',
+                    //border: 'none',
                     marginLeft: '10%',
                     marginTop: '10%',
                     position: 'fixed',
@@ -962,8 +965,10 @@ window.onload = function() {
                 searchInput.css('fontSize', '1em');
             }
         }
-        //add each beat item
-        document.body.appendChild(wrapper.get(0));
+        if (mobile)
+            document.body.appendChild(wrapper.get(0));
+        else
+            this.parentElement.appendChild(wrapper.get(0));
         showOptions();
     }
 
