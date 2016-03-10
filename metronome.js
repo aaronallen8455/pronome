@@ -15,7 +15,12 @@ window.onload = function() {
         AudioBufferSourceNode.prototype.start = AudioBufferSourceNode.prototype.noteOn;
         AudioBufferSourceNode.prototype.stop = AudioBufferSourceNode.prototype.noteOff;
     }
-    
+    if (!context.createAnalyser)
+        context.createAnalyser = context.webkitcreateAnalyser; //used for the visual pulse effect.
+    if (!context.createBiquadFilter)
+        context.createBiquadFilter = context.webkitcreateBiquadFilter;
+
+
     try {
         context.suspend(); //causes problems for some browsers
     }
@@ -341,7 +346,8 @@ window.onload = function() {
         req.onreadystatechange = function() {
             if(req.readyState === 4) {
                 document.body.style.cursor = ''; //done waiting
-                loginWait.close();
+                if (loginWait)
+                    loginWait.close();
                 document.getElementsByTagName('html')[0].style.cursor = '';
                 
                 var result = req.responseText;
@@ -903,6 +909,7 @@ window.onload = function() {
             var regexp;
             //escape special chars
             var str = this.value.replace(/([\(\)\[\].\\\-*?!])/, '\\$1');
+            str = str.replace(/ (?=.)/g, '|'); //allow spaces to create a new search term
             if (this.value.length <= 3) {
                 regexp = new RegExp('^' + str, 'i');
             }else regexp = new RegExp(str, 'i');
@@ -1495,7 +1502,7 @@ window.onload = function() {
         }
         if(mobile || !context.createStereoPanner) this.pan = this.gain; //safari doesn't support the pan node.
         
-        this.analyser = context.createAnalyser() || context.webkitcreateAnalyser(); //used for the visual pulse effect.
+        this.analyser = context.createAnalyser();// || context.webkitcreateAnalyser(); //used for the visual pulse effect.
         this.analyser.fftSize = 32;
         this.analyser.smoothingTimeConstant = .3;
         this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
@@ -1503,7 +1510,7 @@ window.onload = function() {
         this.valve = context.createGain();
         this.valve.connect(this.analyser);
         
-        this.lowPass = context.createBiquadFilter?context.createBiquadFilter():context.webkitcreateBiquadFilter();
+        this.lowPass = context.createBiquadFilter(); //?context.createBiquadFilter():context.webkitcreateBiquadFilter();
         this.lowPass.type = this.lowPass.LOWPASS || 'lowpass';
         if(simpleBeep) this.lowPass.frequency.value = 440;
         else this.lowPass.frequency.value = 440*4;
@@ -2295,9 +2302,8 @@ window.onload = function() {
                 }
                 if(!this.instr[0]) {
                     var freq = parseFloat(this.beat[this.n][1]).toFixed(2);
-                    var beat = this.beat[this.n][0];
-                    var _lowPass = context.createBiquadFilter?context.createBiquadFilter():context.webkitcreateBiquadFilter(); //we need a special LP for the diff pitch.
-                    _lowPass.type = _lowpass.LOWPASS || 'lowpass';
+                    var _lowPass = context.createBiquadFilter(); //?context.createBiquadFilter():context.webkitcreateBiquadFilter(); //we need a special LP for the diff pitch.
+                    _lowPass.type = 'lowpass';
                     _lowPass.Q.value = 1;
                     _lowPass.connect(this.analyser);
                     if(simpleBeep) {
@@ -2310,7 +2316,6 @@ window.onload = function() {
                     }else _lowPass.frequency.value = freq*4;
                 }else{ //if its an instrument with @ modifier.
                     var instr = (parseInt(this.beat[this.n][1])-1).toString(); //make it string so '0' is possible.
-                    var beat = this.beat[this.n][0];
                 }
             }else
                 this.startTime += this.beat[this.n] * 60/tempo; //get start time of the next note. Soon as possible to prevent mobile skip bug.
@@ -2321,7 +2326,6 @@ window.onload = function() {
             }
             if (this.beat[this.n]!=0 && (!setMuteOn || !(this.startTimeC+offset>=muteStart))) {
                 if (randMute === 0 || Math.random() > randMute) {
-                    var that = this;
                     if(!this.instr[0]) { //using oscillator
                         this.osc = context.createOscillator();
                         this.osc.frequency.value = freq || this.frequency;
@@ -2333,7 +2337,6 @@ window.onload = function() {
                             this.osc.connect(gainDecay);
                             this.osc.start(this.startTimeC + offset+.07);
                             this.osc.stop(this.startTimeC + offset+.37);
-                            delete gainDecay;
                             delete this.osc;
                         }else{ //plain tone.
                             this.osc.connect(_gainDecay || this.lowPass);
