@@ -6,7 +6,7 @@ window.onload = function() {
     catch(e) { //browser doesn't support webAudio
         msg('It appears that you\'er using an incompatible browser. Please install the latest version of Chrome, Firefox, or Safari and try again.', false, true, false);
     }
-    //resolve some compatibility issues
+    //backward compatibility issues
     if (!context.createGain)
         context.createGain = context.createGainNode;
     if (!AudioParam.prototype.setTargetAtTime)
@@ -1473,6 +1473,8 @@ window.onload = function() {
             }
             add.lastIndex = 0;
         }
+        //remove zero place holders b/c they can cause problems with the 'rounder' addition
+        parsedBeat = parsedBeat.filter(function(x){return x !== 0});
         //modify the last cell to correct for whatever tiny inaccuracy may exist.
         var rounder = parsedBeat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0);
         rounder = rounder.toFixed(12) - rounder;
@@ -1481,6 +1483,7 @@ window.onload = function() {
         }else{
             parsedBeat[parsedBeat.length-1] += rounder;
         }
+
         return parsedBeat; //return the array of beat cells.
     }
     
