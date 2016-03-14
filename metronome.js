@@ -912,11 +912,15 @@ window.onload = function() {
             var regexp;
             //escape special chars
             var str = this.value.replace(/([\(\)\[\].\\\-*?!])/, '\\$1');
-            str = str.replace(/ (?=.)/g, '.*\\b'); //allow spaces to create a new search term
+            str = str.replace(/ (?=.)/g, ')(?=.*'); //allow spaces to create a new search term
+            str = str.replace(' ', ''); //dont match spaces
+
+            //short strings match from the beginning.
             if (this.value.length <= 3) {
-                regexp = new RegExp('\\b' + str, 'i');
-            }else regexp = new RegExp(str, 'i');
+                regexp = new RegExp('^(?=' + str + ')', 'i');
+            }else regexp = new RegExp('(?=.*' + str + ')', 'i');
             //draw options
+            console.log(regexp);
             showOptions(regexp);
         });
 
@@ -973,7 +977,6 @@ window.onload = function() {
             if (!mobile) {
                 wrapper.css('height', 'auto');
                 var height = wrapper.outerHeight();
-                console.log(height);
                 //set max height
                 if (height > 250) {
                     height = 250;
