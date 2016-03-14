@@ -111,12 +111,15 @@ window.onload = function() {
     
     function setPan() { //set the pan values for each layer based on number of layers
         if (!context.createStereoPanner) return; //do nothing for browsers that don't support the stereopanner node.
-        var p = 2/(metronomes.length + 1)
+        var p = 2/(metronomes.length + 1);
         for (var i =0; i<metronomes.length; i++)
             metronomes[i].pan.pan.value = -1 + (i+1)*p;
     }
-    
-    starter.onclick = start;
+
+    if (!mobile)
+        starter.onclick = start;
+    else //possible fix for iOS
+        starter.addEventListener('touchend', start, false);
     
     function start() {
         if (metronomes.length === 0) return false;
@@ -408,7 +411,7 @@ window.onload = function() {
             }
         };
         req.send(c);
-    }
+    };
     
     User.prototype.setBeat = function() { //replace beat json in DB with current one
         var c = {'email': this.email, 'pass': this.password, 'beat': JSON.stringify(this.beat), 'type': 'setBeat'};
@@ -909,13 +912,24 @@ window.onload = function() {
             var regexp;
             //escape special chars
             var str = this.value.replace(/([\(\)\[\].\\\-*?!])/, '\\$1');
-            str = str.replace(/ (?=.)/g, '|'); //allow spaces to create a new search term
+            str = str.replace(/ (?=.)/g, '.*\\b'); //allow spaces to create a new search term
             if (this.value.length <= 3) {
-                regexp = new RegExp('^' + str, 'i');
+                regexp = new RegExp('\\b' + str, 'i');
             }else regexp = new RegExp(str, 'i');
             //draw options
             showOptions(regexp);
         });
+
+        //on mobile, touching outside the keyboard make the keyboard disappear
+        if (mobile) {
+            searchInput.on('focus', function () {
+                document.addEventListener('touchstart', unfo, false);
+            });
+            function unfo() {
+                searchInput.get(0).blur();
+                document.removeEventListener('touchstart', unfo);
+            }
+        }
 
         var optionsWrapper = $('<div>');
 
