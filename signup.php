@@ -75,10 +75,7 @@ Thank you for registering a new ProNome account! To activate your account, follo
 
 http://www.pronome.net/signup.php?h=$hash
 
-You may then log into your account using the following:
-
-email: $email
-password: $pass
+You may then log into your account.
 
 Enjoy!
 EOT;

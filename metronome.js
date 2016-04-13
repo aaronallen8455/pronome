@@ -884,13 +884,13 @@ window.onload = function() {
         this.blur();
         window.focus();
     });
-    savedBeats.on('mousedown', savedClickHandler);
-    function savedClickHandler(e) {
+    savedBeats.on('mousedown', searchSelectBox);
+    function searchSelectBox(e) {
         var _this = this;
         //do nothing if theres no saved beats
         if (this.children.length === 1) return false;
         //remove this handler and add the close handler to document.
-        $(this).off('mousedown', savedClickHandler);
+        $(this).off('mousedown', searchSelectBox);
 
         document.addEventListener('click', closeClick, true);
         //window.addEventListener('resize', closeClick, false); //close on resize
@@ -900,28 +900,33 @@ window.onload = function() {
             }else{
                 wrapper.fadeOut(100, function(){this.remove()});
                 document.removeEventListener('click', closeClick);
-                _this.addEventListener('mousedown', savedClickHandler);
+                _this.addEventListener('mousedown', searchSelectBox);
             }
         }
         //create our own selection box with search
         var searchInput = $('<input>').css({ //the search input
             margin: 0,
             width: '95%'
-        }).attr({type: 'test', placeholder: 'Search Filter...'}).on('input', function(){
+        }).attr({type: 'text', placeholder: 'Search Filter...'}).on('input', function(){
             //make regexp from input
             var regexp;
             //escape special chars
-            var str = this.value.replace(/([\(\)\[\].\\\-*?!])/, '\\$1');
+            var str = this.value.replace(/([\(\)\[\].\\\-*?!])/g, '\\$1');
             str = str.replace(/ (?=.)/g, ')(?=.*'); //allow spaces to create a new search term
             str = str.replace(' ', ''); //dont match spaces
 
-            //short strings match from the beginning.
-            if (this.value.length <= 3) {
-                regexp = new RegExp('^(?=' + str + ')', 'i');
-            }else regexp = new RegExp('(?=.*' + str + ')', 'i');
-            //draw options
-            console.log(regexp);
-            showOptions(regexp);
+            if (str !== '') {
+                //short strings match from the beginning.
+                if (this.value.length <= 3) {
+                    regexp = new RegExp('^(?=' + str + ')|^\\d+\\..{1,2}(?=' + str + ')', 'i'); //account for number prefixes in instr list
+                } else regexp = new RegExp('(?=.*' + str + ')', 'i');
+                //draw options
+                showOptions(_this, regexp);
+            }else{
+                //no regexp
+                showOptions(_this);
+            }
+
         });
 
         //on mobile, touching outside the keyboard make the keyboard disappear
@@ -938,7 +943,7 @@ window.onload = function() {
         var optionsWrapper = $('<div>');
 
         var wrapper = $('<div>').addClass('savedBeatWrapper').append(
-            searchInput).append('<div>Select a Beat:</div>').append(optionsWrapper).fadeIn(100);
+            searchInput).append('<div>Select an Option:</div>').append(optionsWrapper).fadeIn(100);
 
         //an object to represent an option element
         function Option(ele) {
@@ -949,66 +954,80 @@ window.onload = function() {
             this.div = $('<div>').addClass('savedBeatOption').html(
                 this.name).appendTo(optionsWrapper).on('mousedown', function(){
                 _this.value = ele.value;
+                $(_this).trigger('change');
                 //some mobiles need to artificially close the menu
                 if (mobile) {
                     wrapper.remove();
                     document.removeEventListener('click', closeClick);
-                    _this.addEventListener('mousedown', savedClickHandler);
+                    _this.addEventListener('mousedown', searchSelectBox);
                 }
             });
         }
         //a function for displaying options with a regexp filter
-        function showOptions(regexp) {
-            //clear the optionsWrapper
-            optionsWrapper.empty();
+        function showOptions(parent, regexp) {
+            //clear the optionsWrapper if not recursing
+            if (parent.toString() === "[object HTMLSelectElement]")
+                optionsWrapper.empty();
             var options = [];
-            for (var i=0; i<_this.children.length; i++) {
-                if (_this.children[i].value === 'none') continue;
+            for (var i=0; i<parent.children.length; i++) {
+                //check for option groups
+                if (parent.children[i].toString() === "[object HTMLOptGroupElement]") {
+                    //add a label if no regexp
+                    if (!regexp)
+                        optionsWrapper.append('<div>'+parent.children[i].getAttribute('label')+'</div>');
+                    //recurse over the option group
+                    //showOptions.bind(parent.children[i], regexp);
+                    showOptions(parent.children[i], regexp);
+                    continue;
+                }
+                if (parent.children[i].value === 'none') continue;
                 if (regexp) { //test with regexp
-                    if (!regexp.test(_this.children[i].textContent)) {
-                        if (i === _this.children.length-1 && options.length === 0)
+                    if (!regexp.test(parent.children[i].textContent)) {
+                        if (i === parent.children.length-1 && options.length === 0 && parent.toString() === "[object HTMLSelectElement]")
                             optionsWrapper.append('<div><i>No Results</i></div>');
                         continue;
                     }
                 }
-                options.push(new Option(_this.children[i]));
+                options.push(new Option(parent.children[i]));
             }
-            //if not mobile, position element above or below based on height of wrapper
-            if (!mobile) {
-                wrapper.css('height', 'auto');
-                var height = wrapper.outerHeight();
-                //set max height
-                if (height > 250) {
-                    height = 250;
-                    wrapper.css('height', 250-(wrapper.outerHeight()-wrapper.height()));
-                }
+            //position if not recurrsing
+            if (parent.toString() === "[object HTMLSelectElement]") {
+                //if not mobile, position element above or below based on height of wrapper
+                if (!mobile) {
+                    wrapper.css('height', 'auto');
+                    var height = wrapper.outerHeight();
+                    //set max height
+                    if (height > 250) {
+                        height = 250;
+                        wrapper.css('height', 250 - (wrapper.outerHeight() - wrapper.height()));
+                    }
 
-                var bb = _this.getBoundingClientRect();
-                //position below
-                wrapper.css({
-                    top: _this.offsetHeight + _this.offsetTop
-                });
-            }else{
-                //fill screen for mobile
-                wrapper.css({
-                    top: 0,
-                    left: 0,
-                    width: '80%',
-                    height: '90%',
-                    //border: 'none',
-                    marginLeft: '10%',
-                    marginTop: '10%',
-                    position: 'fixed',
-                    fontSize: '1.3em'
-                });
-                searchInput.css('fontSize', '1em');
+                    //position below
+                    wrapper.css({
+                        top: _this.offsetHeight + _this.offsetTop
+                    });
+                } else {
+                    //fill screen for mobile
+                    wrapper.css({
+                        top: 0,
+                        left: 0,
+                        width: '80%',
+                        height: '90%',
+                        //border: 'none',
+                        marginLeft: '10%',
+                        marginTop: '10%',
+                        position: 'fixed',
+                        fontSize: '1.3em'
+                    });
+                    searchInput.css('fontSize', '1em');
+                }
             }
         }
         if (mobile)
             document.body.appendChild(wrapper.get(0));
         else
             this.parentElement.appendChild(wrapper.get(0));
-        showOptions();
+        showOptions(this);
     }
 
     function updateSaved() { //update the list of saved beats. order them alphabetically.
@@ -1668,7 +1687,12 @@ window.onload = function() {
                 _this.pitchInput.val(_this.instr[2]);
                 _this.pitchInput.trigger('change');
             }
-        });
+        }).on('mousedown', function (e) {
+                //prevent selection box from opening
+                e.preventDefault();
+                this.blur();
+                window.focus();
+            }).on('mousedown', searchSelectBox);
         InstrSamp.list.forEach(function(x,i,a) {
             var name = x.match(/^[A-Za-z]+/)[0];
             var group = $('<optgroup>').attr('label', x);

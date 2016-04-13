@@ -381,6 +381,7 @@ code {
 }
 .savedBeatOption {
     padding: 5px;
+    padding-right: 30px;
     background-image: linear-gradient(to bottom, #667587, #8799a9);
     border: outset 2px #69757f;
 }
@@ -395,6 +396,8 @@ code {
     overflow: auto;
     border: solid 4px #292929;
     border-radius: 4px;
+    text-align: left;
+    font-weight: 100;
 }
 
 @media screen and (max-width: 610px) {
