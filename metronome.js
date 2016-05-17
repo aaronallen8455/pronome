@@ -116,10 +116,10 @@ window.onload = function() {
             metronomes[i].pan.pan.value = -1 + (i+1)*p;
     }
 
-    if (!mobile)
+    //if (!mobile)
         starter.onclick = start;
-    else //possible fix for iOS
-        starter.addEventListener('touchend', start, false);
+    /*else //possible fix for iOS
+        starter.addEventListener('touchend', start, false);*/
     
     function start() {
         if (metronomes.length === 0) return false;
@@ -502,7 +502,7 @@ window.onload = function() {
             gain.gain.value = this.value/10;
             this.classList.remove('error');
         }else this.classList.add('error');
-    }
+    };
     
     function getCycles() { //returns array of minimum number of cycles for each layer to form a complete repeat of beat.
         var cycles = [];
@@ -524,40 +524,30 @@ window.onload = function() {
             return 0;
         });
         var top = metClone[0].beat.reduce(metReduce,0);
-        
-        var count = 1;
-        var tO = new Date(); //used to check if beat is too asymmetrical
-        while(count !== 0){ //get the longest beat cycle set (least common denominator).
-            count = 0;
-            for(var i=1; i<metClone.length; i++) {
-            //metClone.forEach(function(m){
-                while(((top.toFixed(5) / metClone[i].beat.reduce(metReduce,0)).toFixed(5)).toString().slice(-6) != 0) {
-                    top += metClone[0].beat.reduce(metReduce,0);
-                    count++; //we'll need to cycle through all the layers again.
-                    
-                    if((new Date())-tO > 3)
-                        return false;
-                        //throw new Error('This beat is too asymmetrical be graphed.');
-                }
-                if(i===1) count=0; //avoid unnecessary repetition.
-            }
-        }
-        try {
-        metronomes.forEach(function(m) { //compute # of cycles for each layer based on the GCD.
-            var orig,den;
-            orig = den = m.beat.reduce(metReduce,0);
-            var count = 1;
-            metronomes.forEach(function(m){
-                while(((den.toFixed(5) / top.toFixed(5)).toFixed(5)).toString().slice(-6) != 0) {
-                    count++;
-                    den += orig;
 
-                    if((new Date())-tO > (mobile?50:10)) //check for timeout
-                        throw new Error();
-                }
+        //find the greatest common denominator of two #s
+        function gcd(n, m) {
+            var r = n%m;
+            if (r.toFixed(5) == 0) return m;
+            return gcd(m,r);
+        }
+        //use the gcd to get the least common multiple of n and m
+        function lcm(n, m) {
+            return n*m/gcd(n ,m);
+        }
+
+        try {
+            //find of the least common multiple of all the beat layers
+            for (var i=1; i<metClone.length; i++) {
+                top = lcm(top, metClone[i].beat.reduce(metReduce, 0));
+            }
+
+            metronomes.forEach(function(m) {
+                //get number of cycles for each layer
+                var c = Math.round(top / m.beat.reduce(metReduce, 0));
+                if (c > 1000) throw new Error(); //Stop if too asymmetrical
+                cycles.push(c);
             });
-            cycles.push(count);
-        });
         }
         catch (e) {
             return false; //timed out.
@@ -616,14 +606,21 @@ window.onload = function() {
     function drawGraph() { //Create the beat graph.
         
         var tO = new Date();
-        function timeOut(i) { //we need to check for timeout and throw error if so.
+        function timeOut() { //we need to check for timeout and throw error if so.
             canvas.setAttribute('height',15);
-            c.fillStyle = '#C94444';
             c.font = 'bold 15px serif';
-            if(!mobile)
-                c.fillText('Error: This beat could not be graphed because it\'s too asymmetrical. '+(i?'(layer '+i+')':''),20,10);
-            else
-                c.fillText('Graph Error: Beat is too asymmetrical.',20,10);
+            c.fillStyle = '#21262C';
+            var textSize = c.measureText('Error: This beat could not be graphed because it\'s too asymmetrical.');
+            if(!mobile){
+                c.fillRect(18,0, textSize.width+4, 15);
+                c.fillStyle = '#C94444';
+                c.fillText('Error: This beat could not be graphed because it\'s too asymmetrical.',20,12);
+            }else{
+                c.fillRect(18,0, textSize.width+4, 15);
+                c.fillStyle = '#C94444';
+                c.fillText('Graph Error: Beat is too asymmetrical.',20,12);
+            }
+
             if(i != undefined) throw new Error();
             else $(window).trigger('resize');
         }
@@ -654,7 +651,6 @@ window.onload = function() {
             return p+c;
         }
         totalCycleTime = metronomes[0].beat.reduce(metReduce,0) * cycles[0]; //the beat cycle sum.
-        if(started) graphNeedle(width/2);
         try {
             for(var i=0; i<metronomes.length; i++) {
                 var radius = width/7 + (metronomes.length-i)*(3/10*width/metronomes.length);
@@ -669,7 +665,7 @@ window.onload = function() {
                 c.translate(width/2,width/2);
                 //c.fillStyle = 'black';
                 //c.fillRect(0,0,1,1); //mark center for calibration.
-                c.rotate(1*Math.PI);
+                c.rotate(Math.PI);
                 c.rotate(metronomes[i].offSet/totalCycleTime*2*Math.PI);
                 c.beginPath();
                 for(var p = 0; p<cycles[i]; p++)
@@ -696,10 +692,10 @@ window.onload = function() {
                         c.arc(0,0,radius,.5*Math.PI,beatCycle[p]+.5*Math.PI); //the circle.
                         c.rotate(beatCycle[p]);
                     }
-                    if ((new Date())-tO > 500) //check for timeout
+                    if ((new Date())-tO > 50) //check for timeout
                         timeOut(i+1);
                 }
-                c.strokeStyle = 'hsl('+ ((metronomes.length-i)*200/metronomes.length) + ',55%,35%)' //give each layer a color.
+                c.strokeStyle = 'hsl('+ ((metronomes.length-i)*200/metronomes.length) + ',55%,35%)'; //give each layer a color.
                 c.lineWidth = 1.5;
                 if(mobile) c.lineWidth = 2;
                 c.stroke();
@@ -710,6 +706,9 @@ window.onload = function() {
             $(window).trigger('resize');
             return;
         }
+
+        if(started) graphNeedle(width/2);
+
         $(window).trigger('resize');
     }
                 
@@ -945,11 +944,15 @@ window.onload = function() {
         var wrapper = $('<div>').addClass('savedBeatWrapper').append(
             searchInput).append('<div>Select an Option:</div>').append(optionsWrapper).fadeIn(100);
 
+        var selectedItem = null;
         //an object to represent an option element
         function Option(ele) {
             this.name = ele.innerHTML;
             //italicize if is selected
-            if (ele.value === _this.value) this.name = '<i>' + this.name + '</i>';
+            if (ele.value === _this.value) {
+                this.name = '<i>' + this.name + '</i>';
+                selectedItem = this;
+            }
             //create a div container
             this.div = $('<div>').addClass('savedBeatOption').html(
                 this.name).appendTo(optionsWrapper).on('mousedown', function(){
@@ -990,7 +993,7 @@ window.onload = function() {
                 }
                 options.push(new Option(parent.children[i]));
             }
-            //position if not recurrsing
+            //position if not recursing
             if (parent.toString() === "[object HTMLSelectElement]") {
                 //if not mobile, position element above or below based on height of wrapper
                 if (!mobile) {
@@ -1004,7 +1007,8 @@ window.onload = function() {
 
                     //position below
                     wrapper.css({
-                        top: _this.offsetHeight + _this.offsetTop
+                        top: _this.offsetHeight + _this.offsetTop,
+                        left: _this.offsetLeft
                     });
                 } else {
                     //fill screen for mobile
@@ -1028,6 +1032,9 @@ window.onload = function() {
         else
             this.parentElement.appendChild(wrapper.get(0));
         showOptions(this);
+        //scroll to the selected item
+        if (selectedItem)
+            wrapper.get(0).scrollTop = selectedItem.div.position().top + selectedItem.div.height()*.75 - wrapper.height()/2;
     }
 
     function updateSaved() { //update the list of saved beats. order them alphabetically.
