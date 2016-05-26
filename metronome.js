@@ -692,7 +692,7 @@ window.onload = function() {
                         c.arc(0,0,radius,.5*Math.PI,beatCycle[p]+.5*Math.PI); //the circle.
                         c.rotate(beatCycle[p]);
                     }
-                    if ((new Date())-tO > 50) //check for timeout
+                    if ((new Date())-tO > (mobile?165:100)) //check for timeout
                         timeOut(i+1);
                 }
                 c.strokeStyle = 'hsl('+ ((metronomes.length-i)*200/metronomes.length) + ',55%,35%)'; //give each layer a color.
@@ -1303,65 +1303,26 @@ window.onload = function() {
         
         if(str.indexOf('{') != -1) { //if theres a group multiply...
             var regStart = /\{/g; //gets opening brace of all groups
-            var regEnd = /\}[\d.+\-\/*Xx]+/g; //gets closing brace of all groups
-            var startPos = []; //holds group start position(s)
-            var endPos = []; //holds group end position(s)
-            //var end = str.match(/\}[\d.+\-\/*Xx]+/g); //holds all the coeficient expressions.
-            var end = [];
-            //populate startPos and endPos:
-            
-            var startPosCounter; //array index of the innermost opening bracket
-            for (var i=0; i<str.length; i++) {
-                if (str[i] === '{') {
-                    startPos.push(i);
-                    startPosCounter = startPos.length -1;
-                }
-                if (str[i] === '}') {
-                    endPos[startPosCounter] = i; //accounts for nested groups
-                    end[startPosCounter] = /\}[\d.+\-\/*Xx]+/.exec(str.slice(i))[0];
-                    startPosCounter--;
-                }
-            }
-            /*
-            while((ex = regStart.exec(str)) != null) {
-                startPos.push(ex.index);
-            }
-            while((ex = regEnd.exec(str)) != null) {
-                endPos.push(ex.index);
-            }
-            */
-            var count = endPos.length; //the number of groups
-            
-            for(var i =0; i<count; i++) {
-                var co = end[i].slice(1);
+            var regEnd = /}[\d.+\-\/*Xx]+/g; //gets closing brace of all groups
+            var subStr;
+            //handle each complete multiplier group
+            while (subStr = /\{([^\{]*?)}([\d.+\-/*Xx]+)/.exec(str)) {
+                var values = subStr[0];
+                var co = subStr[2]; //the scalar value
                 if (co.search(/[+\-]/) != -1) { //we need to simplify add/subtract expressions.
                     co = parseBeat(co)[0].toString();
                 }
-                console.log(co);
-                var offset = 0; //keeps track of string length changes.
-                function rep(w,div,exp,pos,all) {
-                    pos += offset;
-                    if(pos >= startPos[i] && pos < endPos[i]) { //if the cell is in a group
-                        var expOldL = exp.toString().length;
-                        exp = parseBeat(exp)[0]; //evaluate the expression
-                        var expNewL = exp.toString().length;
-                        
-                        startPos.forEach(function(x,n,a) {
-                            if(n>i && x>pos) a[n] += 1+co.length+(expNewL - expOldL); //x>pos condition allows for nested groups
-                        });
-                        endPos.forEach(function(x,n,a) {
-                            if(n>=i && x>pos) a[n] += 1+co.length+(expNewL - expOldL);
-                        });
-                        
-                        offset += 1+co.length+(expNewL - expOldL);
-                        return div+exp+'*'+co;
-                    }else return w;
+                values = values.replace(/([\[{,|\)])([\d.+\-\/*Xx]+)/g, rep); //apply multiplication each relevant value.
+                function rep(w, div, exp) {
+                    exp = parseBeat(exp)[0]; //evaluate the expression
+                    return div + exp + '*' + co;
                 }
-                str = str.replace(/([\[{,|\)])([\d.+\-\/*Xx]+)/g, rep); //go through all the cell values with the 'rep' function.
+                //remove group multiply syntax
+                values = values.replace(regStart, '');
+                values = values.replace(regEnd, '');
+                //insert back into main string
+                str = str.replace(/\{[^\{]*?}[\d.+\-/*Xx]+/, values);
             }
-            //remove the group multiply syntax
-            str = str.replace(regStart, '');
-            str = str.replace(regEnd, '');
         }//end of group multiply if
         
         while (str.match(/\[\s*\[/))
@@ -1626,6 +1587,7 @@ window.onload = function() {
                         this.classList.remove('error');
                         _this.beat = parseBeat(this.value());
                         console.log(_this.beat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0));
+                        console.log(_this.beat);
                     }else this.classList.add('error');
                 }
                 
@@ -1870,7 +1832,7 @@ window.onload = function() {
             [/^\[?\D+,|,\[?\D+,|,[^,\d\s]+$|\d[a-wyzA-WYZ]|[+\-*xX/][^\d.]|[^\d).\s,]$|\D\.\D|\D\.$|\.\d+\.|^[a-zA-Z]|,[a-zA-Z]/, 'Invalid beat cell value.'],
             [/@[^a-gA-G\d]|@[a-gA-G]?[b#]?$|@[a-gA-G][^#b\d]/, 'Invalid pitch assignment using \'@\'.'],
             [/[^\[,\}\{]\[/, 'Incorrect multi-cell repeat syntax'],
-            [/\}[\d.+\-\/*Xx]*[^\d.+\-\/*Xx,|\(\]][\d.+\-\/*Xx]*|\}[^\d.]/, 'Invalid group multiplication coefficient.'],
+            [/}[\d.+\-\/*Xx]*[^\d.+\-\/*Xx,|\(\]}][\d.+\-/*Xx]*|}[^\d.]/, 'Invalid group multiplication coefficient.'],
             [/\{[^}]*$/, 'Missing the closing brace of a multiplication group.'],
             [/^[^{]*\}/, 'Missing the opening brace of a multiplication group.'],
             [/\[[^\]]*$/, 'Missing the closing brace of a multi-cell repeat.'],
@@ -1911,7 +1873,7 @@ window.onload = function() {
                 errors = offset;
                 break;
             case 'detune':
-                errors = detune
+                errors = detune;
                 break;
             default:
                 errors = beat;
