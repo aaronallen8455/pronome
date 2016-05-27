@@ -62,7 +62,7 @@ window.onload = function() {
     request.open('GET','metinstructions.txt?'+Math.floor(Math.random()*1000));
     request.onreadystatechange = function(e) {
         instructions = e.target.response;
-    }
+    };
     request.send(null);
     
     $('<button>', {text: '[?]'}).attr('title', 'Help').addClass('helpButton').appendTo(mets).click(function() { //the help button
@@ -436,7 +436,7 @@ window.onload = function() {
             }
         };
         req.send(JSON.stringify(c));
-    }
+    };
     
     User.prototype.syncBeat = function(dlBeat) { //sync client with the database.
         
@@ -444,13 +444,13 @@ window.onload = function() {
             this.beat[p] = dlBeat[p];
         }
         updateSaved();
-    }
+    };
     
     User.prototype.logOut = function() {
         user = false;
         localStorage.removeItem('__rememberMe');
         updateSaved();
-    }
+    };
     var user;
     if(localStorage.getItem('__rememberMe') && localStorage.getItem('__rememberMe').length === 25 && navigator.onLine) { //if the remember cookie is present, create the user from it.
         var email = localStorage.getItem('__rememberMe').split(',', 2)[0];
@@ -459,7 +459,7 @@ window.onload = function() {
         //send server the selector and token to login with (email will be the selector, pass is the token).
     }
     
-    
+    var tempoGraphChange = false;
     tempoInput.onchange = function() {
         if(started && (metronomes.length>1)) //can't change tempo during play if more than 1 nome.
             this.value = tempo;
@@ -468,6 +468,9 @@ window.onload = function() {
                 tempo = this.value;
                 this.style.borderWidth = 0;
                 this.classList.remove('error');
+                if (started && visGraph) {
+                    tempoGraphChange = true; //triggers the graph redraw within the schd function
+                }
             }else {this.classList.add('error'); this.style.borderWidth = '1px';}
         }
     };
@@ -481,6 +484,9 @@ window.onload = function() {
             if(t)clearTimeout(t);
             if(temp) {
                 temp = 60/((new Date().getTime() - temp)/1000);
+                if (started && visGraph) {
+                    tempoGraphChange = true; //triggers the graph redraw within the schd function
+                }
                 temps.push(temp);
                 tempoInput.value = tempo = (temps.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0)/temps.length).toFixed(2);
             }
@@ -567,17 +573,9 @@ window.onload = function() {
     var c = canvas.getContext('2d');
     var totalCycleTime;
     var time;
-    /*var needle = document.createElement('canvas');
-    $(needle).css({
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        opacity: .3,
-        display: 'none'
-    }).attr({width: 400, height: 400}).appendTo(graphDiv);
-    var needleC = needle.getContext('2d');*/
+    var cyclePercent; //percentage of cycle completed
     
-    function graphNeedle(radius) { 
+    function graphNeedle(radius, percent) {
         //if(graphDiv.children().length>1) graphDiv.children()[1].remove(); //replace old needle.
         var needle = document.createElement('div');
         $(needle).css({
@@ -588,10 +586,14 @@ window.onload = function() {
             opacity: .3,
             'transform-origin': '50% bottom'
         }).appendTo(graphDiv).css({left: radius-1, top:1});
-        var width = radius*2;
-        var cycleSec = totalCycleTime*(60/tempo);
+        var cycleSec = totalCycleTime*(60/tempo); //number of seconds for one complete cycle.
+        if (percent) {
+            time = context.currentTime - cycleSec * percent; //adjust time to compensate for tempo change.
+        }
         function rotateNeedle() { //rotate and draw the needle
-            needle.style.transform = 'rotate('+(context.currentTime-time)/cycleSec*360+'deg)';
+            cyclePercent = (context.currentTime-time)/cycleSec;
+            needle.style.transform = 'rotate('+cyclePercent*360+'deg)';
+            cyclePercent = cyclePercent%1;
             if(!started) {
                 if(needle.parentElement)
                     needle.parentElement.removeChild(needle);
@@ -707,7 +709,11 @@ window.onload = function() {
             return;
         }
 
-        if(started) graphNeedle(width/2);
+        if (graphDiv.children().length === 2 && started) {
+            graphDiv.children('div').detach();
+            graphNeedle(width/2, cyclePercent);
+        }else if(started) graphNeedle(width/2);
+
 
         $(window).trigger('resize');
     }
@@ -1587,7 +1593,6 @@ window.onload = function() {
                         this.classList.remove('error');
                         _this.beat = parseBeat(this.value());
                         console.log(_this.beat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0));
-                        console.log(_this.beat);
                     }else this.classList.add('error');
                 }
                 
@@ -2301,6 +2306,7 @@ window.onload = function() {
     
     Metronome.prototype.schd = function(e) { //schedules the notes ahead of time. this function is called every 25 ms while playing.
         this.time = context.currentTime;
+
         var offset = this.offSet*60/tempo;
         while (this.startTime - this.time < lookAhead - offset) {
             this.startTimeC = this.startTime; //the current startTime. this.startTime has to be changed ASAP so we use this value instead.
@@ -2332,7 +2338,12 @@ window.onload = function() {
                 }
             }else
                 this.startTime += this.beat[this.n] * 60/tempo; //get start time of the next note. Soon as possible to prevent mobile skip bug.
-            
+
+            if (tempoGraphChange) { //in the case of user changing tempo with 1 layer, while graph is active, reflect the change.
+                window.setTimeout(drawGraph, (this.startTime + offset + .07)/1000);
+                tempoGraphChange = false;
+            }
+
             if (setMuteOn && this.startTimeC+offset >= muteEnd) {
                 muteStart = muteEnd + setMuteTime1;
                 muteEnd = muteEnd + setMuteTime1 + setMuteTime2;
