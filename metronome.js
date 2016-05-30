@@ -39,9 +39,9 @@ window.onload = function() {
     var started = false; //metronomes' state
     var worker = new Worker('metWorker.js'); //this worker handles the setInterval tasks (like scheduling notes).
     var mobile;
-    if (screen.availWidth <= 750 || ((screen.availHeight < screen.availWidth) && screen.availHeight <=720))
-        mobile = true; //check for mobile using screen size.
-    else mobile = false;
+    mobile = (screen.availWidth <= 820 || ((screen.availHeight < screen.availWidth) && screen.availHeight <=820));
+        //mobile = true; //check for mobile using screen size.
+    //else mobile = false;
     
     var lookAhead = .1; //the value in secs that sounds are pre-scheduled by.
     //if (mobile) lookAhead = .1; //works for mobiles
@@ -1306,11 +1306,11 @@ window.onload = function() {
         var mult = /[\/\*]/g;
         var parsedBeat = [];
         str = str.replace(/[!].*?[!]/g, ''); //escape comments.
-        
+
+        var subStr;
         if(str.indexOf('{') != -1) { //if theres a group multiply...
             var regStart = /\{/g; //gets opening brace of all groups
             var regEnd = /}[\d.+\-\/*Xx]+/g; //gets closing brace of all groups
-            var subStr;
             //handle each complete multiplier group
             while (subStr = /\{([^\{]*?)}([\d.+\-/*Xx]+)/.exec(str)) {
                 var values = subStr[0];
@@ -1330,41 +1330,55 @@ window.onload = function() {
                 str = str.replace(/\{[^\{]*?}[\d.+\-/*Xx]+/, values);
             }
         }//end of group multiply if
-        
-        while (str.match(/\[\s*\[/))
-            str = str.replace(/\[\s*\[/, '[0,['); //need to insert 0's between closley nested reps
-        str = str.replace(/\]([^,]+)\]/g, ']$1,0]'); //same as above but for the closing bracket.
-        str = str.replace(/\]([^,|]+)[|]/g, ']$1,0|'); //necessary for having loops exits (|) that are next to a brace ].
+
+        //handle single cell repeats.
+        while (subStr = /([^\[\],\|\{}]+)\((\d+)\)([.\d+\-/*xX ]*)(@[A-Ga-g\d.]+)?/.exec(str)) {
+            var c = subStr[1]; //the cell to be repeated
+            var rep = subStr[2]; //times to repeat
+            var last = subStr[3]; //modifier of last cell
+            var pitch = subStr[4]; //if pitch is assigned after parenthesis
+            var result = '';
+            for (var i=1; i<rep; i++) {
+                result += c + (pitch?pitch:'') + ',';
+            }
+            if (c.indexOf('@') === -1)
+                result += c + '+0' + (last?last:'') + (pitch?pitch:'');
+            else {
+                result += c.slice(0,c.indexOf('@')) + '+0' + (last?last:'') + c.slice(c.indexOf('@'));
+            }
+            //replace into main string
+            str = str.slice(0, subStr.index) + result + str.slice(subStr.index+subStr[0].length);
+        }
+
+        //handle multi-cell repeats.
+        while (subStr = /\[([^\[]+?)]\(?(\d+)\)?([.\d+\-/*xX ]*)/.exec(str)) {
+            var c = subStr[1]; //the content to be repeated
+            var rep = subStr[2]; //times to repeat
+            var last = subStr[3]; //last cell modifier
+            var result = '';
+            for (i = 1; i<rep; i++) {
+                result += c.replace('|', ',') + ',';
+            }
+            //handle chop for last repeat.
+            result += c.slice(0, (c.indexOf('|')===-1?c.length:c.indexOf('|')));
+            //handle modifier
+            var p;
+            if (last && (p = /@[\dA-Ga-g.]+$/.exec(result))) {
+                result = result.slice(0, p.index) + '+0' + last + p[0];
+            }else if (last)
+                result += '+0' + last;
+            //replace into main string
+            str = str.slice(0, subStr.index) + result + str.slice(subStr.index+subStr[0].length);
+        }
+
         str = str.replace(/x/gi, '*'); //option to use 'x' for multiplication.
-        str = str.replace(/[\\|]/g, '|,'); //prep a 'chop' cell
-        
+
         var cells = str.split(','); //beat values are seperated by commas.
         for (var i in cells) {
             if (cells[i].search(/@/) != -1) { //if theres a pitch modifier
                 var pitch = cells[i].match(/@[A-Ga-g]?[b#]?\d+/)[0].slice(1);
                 pitch = Metronome.getFreq(pitch);
                 cells[i] = cells[i].replace(/@[A-Ga-g]?[b#]?\d+/, '');
-            }
-            if (cells[i].search(/\[/) != -1) { //if this cell has a [ to initiate multi-cell [] repeating
-                if(!repStart) var repStart = [];
-                repStart.push(parsedBeat.length);
-                cells[i] = cells[i].slice(cells[i].search(/\[/)+1);
-            }
-            if (cells[i].search(/[\\|]/) != -1) { //if it has a chop (within a [])
-                var chop = parsedBeat.length;
-                cells[i] = cells[i].slice(0,-1);
-            }
-            if (cells[i].search(/\]/) != -1) { //if this cell ends a multi-cell repeat
-                var repTimes = parseInt(cells[i].match(/\]\(?(\d+)\)?/)[1]);
-                if (cells[i].search(/\]\w*\(/) != -1) {
-                    var repLast = cells[i].match(/\]\((\d+)\)(.*)/)[2]; //modifier for the last iteration
-                }
-                cells[i] = cells[i].slice(0, cells[i].search(/\]/)); //make the cell parse-able.
-            }
-            if (cells[i].search(/\((\d+)\)(.*)/) > 0) { //if this cell has () for single cell repeating
-                var repeat = parseInt(cells[i].match(/\((\d+)\)(.*)/)[1]); //number of times to repeat
-                var last = cells[i].match(/\((\d+)\)(.*)/)[2]; //modifier for last time.
-                cells[i] = cells[i].slice(0, cells[i].search(/\(/)); //take out the repeat tag.
             }
             var result = 0;
             var terms = [cells[i]];
@@ -1435,56 +1449,13 @@ window.onload = function() {
                     cells[i] = new Array(parseFloat(result), pitch);
                     pitch = undefined;
                 }else cells[i] = parseFloat(result); //if the beat cell has been reduced to a single number, we're done!
-                if (repeat) { //if this cell is to be repeated.
-                    if (chop!=undefined && chop === parsedBeat.length) //if theres a chop right after a repeating cell, chop after repeats.
-                        chop += repeat-1;
-                    for (var p =0; p<repeat-1; p++) 
-                        if(Array.isArray(cells[i])) parsedBeat.push(cells[i].slice(0)); //clone if array.
-                        else parsedBeat.push(cells[i]);
-                    if (last.search(/\d/) != -1){ //if theres a modifier on the final rep.
-                        last = '0' + last; //account for a negative value
-                        if(Array.isArray(cells[i])) { //check if its pitch modified
-                            cells[i][0] += parseBeat(last)[0];
-                            parsedBeat.push(cells[i]);
-                        }else parsedBeat.push(cells[i] + parseBeat(last)[0]);
-                    }else parsedBeat.push(cells[i]);
-                    
-                    last = undefined;
-                    repeat = undefined;
-                    
-                }else parsedBeat.push(cells[i]);
-                if (repTimes) { //if a multi-cell repeat needs to be executed.
-                    var len = repStart.length-1; //get innermost nested repeat.
-                    var repStop = parsedBeat.length -1;
-                    for(var h=1; h<repTimes; h++) //loop for repTimes
-                        if(chop!=undefined && h === repTimes-1) { //if were chopping
-                            for (var p=repStart[len]; p<=chop; p++) {
-                                
-                                if(Array.isArray(parsedBeat[p])) parsedBeat.push(parsedBeat[p].slice(0)); //we have to clone any arrays.
-                                else parsedBeat.push(parsedBeat[p]);
-                            }       
-                        }else{
-                            for(var p=repStart[len]; p<=repStop; p++) {
-                                if(Array.isArray(parsedBeat[p])) parsedBeat.push(parsedBeat[p].slice(0)); //we have to clone any arrays.
-                                else parsedBeat.push(parsedBeat[p]);
-                            }
-                        }
-                    repStart.pop(); //in case of nested repeats, get next outer rep.
-                    if (repLast && (repLast.search(/\d/) != -1)) { //if modifier on the final rep
-                        repLast = '0' + repLast;
-                        if(Array.isArray(parsedBeat[parsedBeat.length-1])) { //check if its pitch modified
-                            parsedBeat[parsedBeat.length-1][0] += parseBeat(repLast)[0];
-                        }else parsedBeat[parsedBeat.length-1] += parseBeat(repLast)[0];
-                    }
-                    repTimes = undefined;
-                    repLast = undefined;
-                    chop = undefined;
-                }
+                parsedBeat.push(cells[i]);
             }
             add.lastIndex = 0;
         }
         //remove zero place holders b/c they can cause problems with the 'rounder' addition
-        parsedBeat = parsedBeat.filter(function(x){return x !== 0});
+        if (parsedBeat.indexOf('0') !== -1)
+            parsedBeat = parsedBeat.filter(function(x){return x !== 0});
         //modify the last cell to correct for whatever tiny inaccuracy may exist.
         var rounder = parsedBeat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0);
         rounder = rounder.toFixed(12) - rounder;
@@ -1493,6 +1464,11 @@ window.onload = function() {
         }else{
             parsedBeat[parsedBeat.length-1] += rounder;
         }
+
+        /*console.log(parsedBeat.reduce(function (a, b) {
+            if (Array.isArray(b)) return a + ', ' + b[0].toFixed(2).toString();
+            return a + ', ' + b.toFixed(2).toString();
+        }), '');*/
 
         return parsedBeat; //return the array of beat cells.
     }
