@@ -39,9 +39,8 @@ window.onload = function() {
     var started = false; //metronomes' state
     var worker = new Worker('metWorker.js'); //this worker handles the setInterval tasks (like scheduling notes).
     var mobile;
-    mobile = (screen.availWidth <= 820 || ((screen.availHeight < screen.availWidth) && screen.availHeight <=820));
-        //mobile = true; //check for mobile using screen size.
-    //else mobile = false;
+    //check if mobile device
+    mobile = (screen.availWidth <= 768 || ((screen.availHeight > screen.availWidth) && screen.availHeight <=768));
     
     var lookAhead = .1; //the value in secs that sounds are pre-scheduled by.
     //if (mobile) lookAhead = .1; //works for mobiles
@@ -2024,7 +2023,7 @@ window.onload = function() {
 
                 if (con) { //if were continuing an incomplete element.
                     var x;
-                    
+
                     switch (con) {
                         case 'par':
                             if(x = str.match(/^[^,\]\\|@\}\{]+/)) x = x[0]; //parenthesis and modifier expression
@@ -2032,16 +2031,11 @@ window.onload = function() {
                             break;
                         case 'pitch': //pitch/intr selection
                             if(x = str.match(/^[^,\\|\(\]\}\{]+/)) x = x[0];
-                            //else if(x = str.match(/^,/)) {
-                            //    x = x[0];
-                            //}
                             span.style.color = '#D142EB';
                             break;
                         case 'com': //comments
-                            if(x = str.match(/^[^!]*!?/)) x = x[0]; 
+                            x = null;
                             span.style.color = 'grey';
-                            if (str.search(/^!/) != -1) //if ! is first (closing a comment), we catch it
-                                x = str.match(/^!/)[0];
                             break;
                         case 'brace': //closing brace. catches the 'n' modifier.
                             if(x = str.match(/^[^,\\|\(\]\}\{]+/)) x = x[0];
@@ -2052,12 +2046,10 @@ window.onload = function() {
                             span.style.color = '#CCB96E';
                             break;
                     }
-                    
-                    
+
                     con = false;
                     if (x==null) continue;
-                    
-                    
+
                 }else{ //if not continuing
 
                     
