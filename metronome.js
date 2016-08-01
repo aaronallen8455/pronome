@@ -1331,7 +1331,7 @@ window.onload = function() {
         }//end of group multiply if
 
         //handle single cell repeats.
-        while (subStr = /([^\[\],\|\{}]+)\((\d+)\)([.\d+\-/*xX ]*)(@[A-Ga-g\d.]+)?/.exec(str)) {
+        while (subStr = /([^\[\],|{}]+)\((\d+)\)([.\d+\-/*xX ]*)(@[A-Ga-g#\d.]+)?/.exec(str)) {
             var c = subStr[1]; //the cell to be repeated
             var rep = subStr[2]; //times to repeat
             var last = subStr[3]; //modifier of last cell
@@ -1362,7 +1362,7 @@ window.onload = function() {
             result += c.slice(0, (c.indexOf('|')===-1?c.length:c.indexOf('|')));
             //handle modifier
             var p;
-            if (last && (p = /@[\dA-Ga-g.]+$/.exec(result))) {
+            if (last && (p = /@[\dA-Ga-g.#]+$/.exec(result))) {
                 result = result.slice(0, p.index) + '+0' + last + p[0];
             }else if (last)
                 result += '+0' + last;
@@ -1873,7 +1873,7 @@ window.onload = function() {
     Metronome.getFreq = function(pitch) { //utility for converting notes to frequency in hertz
         var note = pitch.match(/[A-Ga-g]?[b#]?/)[0].toLowerCase(); //get the note name
         if(note == '') return pitch; //return raw pitch numbers.
-        var octave = parseFloat(pitch.match(/\d+/))-1; //get octave number
+        var octave = parseFloat(pitch.match(/\d+/))-5; //get octave number
         var noteConv = {
             'a':12, 'a#':13, 'bb': 13, 'b':14, 'c':3,
             'c#':4, 'db':4, 'd':5, 'd#':6, 'eb':6,
@@ -1881,10 +1881,9 @@ window.onload = function() {
             'g#':11, 'ab':11
         };
         note = noteConv[note];
-        octave = Math.pow(2,octave);
-        note = Math.pow(1.059463,note);
-        return ((275*octave*note)/10).toFixed(3);
-    }
+        note += octave * 12;
+        return (440 * Math.pow(2, note/12)).toFixed(3);
+    };
     
     Metronome.randNote = function() { //generate a note based on the other notes present.
         do {
