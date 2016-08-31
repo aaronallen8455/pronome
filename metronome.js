@@ -1303,12 +1303,80 @@ window.onload = function() {
 
     function parseBeat(str) { //convert the input string to an array of integers. Sorta like eval() but for basic math operations.
         var add = /[+-]/g;
-        var mult = /[\/\*]/g;
+        var mult = /[\/*]/g;
         var parsedBeat = [];
+
         str = str.replace(/[!].*?[!]/g, ''); //escape comments.
 
+        // resolve beat referencing
+        if (str.indexOf('$') !== -1) {
+            var index = 1,
+                originalBeat = str;
+
+            metronomes.find(function (x, i) {
+                index = i + 1;
+                return x.beatInput.val().replace(/[!].*?[!]/g, '') === str;
+            });
+
+            while (str.indexOf('$') !== -1) {
+                var ref = str.match(/\$([\ds])+/)[1],
+                    refBeat = '';
+
+                if (!isNaN(ref)) { // numeric reference
+                    ref--;
+                    if (!metronomes[ref]) ref = 0; // reference to nonexistent beat
+                    refBeat = metronomes[ref].beatInput.val().replace(/[!].*?[!]/g, '');
+                    // check if is 'self'
+                    if (refBeat === originalBeat) {
+                        refBeat = refBeat.replace(new RegExp('\\$' + (ref+1) + '(\(\d+\)[^,}\]]*)?', 'g'), '\$s'); // replace numeric self-ref with %s
+                    }else{
+                        // only go 1 level deep
+                        refBeat = refBeat.replace(/\$[\ds]+(\(\d+\)[^,}\]]*)?/g, '\$s');
+                    }
+                } else if (ref === 's') { // self reference
+                    refBeat = originalBeat;
+                    refBeat = refBeat.replace(new RegExp('\\$' + index, 'g'), '\$s')
+                }
+
+                // prevent infinite recursion in self reference
+                //if (ref === 's') {
+
+                while (refBeat.indexOf('$s') !== -1) {
+                    // check for nesting inside of multi repeat or group mult
+
+                    // determine if closest nesting is a bracket or brace
+                    var head = refBeat.substr(0, refBeat.indexOf('$s')),
+                        indexOfBrace = head.search(/{[^}]*$/),
+                        indexOfBracket = head.search(/\[[^\]]*$/);
+
+                    // zero out the reference and its innermost nest
+                    if (indexOfBrace > indexOfBracket) {
+                        refBeat = refBeat.replace(/\{.*?\$s.*?}[\d\-+*/.]+/, '0');
+                    } else if (indexOfBracket > indexOfBrace) {
+                        refBeat = refBeat.replace(/\[.*?\$s.*?]\(?\d+\)?[\d\-+*/.]*/, '0');
+                    } else {
+                        refBeat = refBeat.replace(/\$s(\(\d+\)[^,}\]]*)?/, '0');
+                    }
+                }
+                //}
+
+                // check for single cell repeat on the reference
+                if (str.search(/\$[\ds]+?\(/) === str.indexOf('$')) {
+                    //refBeat = refBeat.replace(/\$/g, '\\\$');
+                    str = str.replace(/\$[\ds]+?(\(\d+\)[^,\]}]*)/, '[' + refBeat + ']$1');
+                }else{ // straight replace
+                    //refBeat = refBeat.replace(/\$/g, '\\\$');
+                    str = str.replace(/\$[\ds]+/, refBeat);
+                }
+            }
+            str = str.replace(/,0,/g, ',').replace(/,0(?=[^,])/g, '');
+            str = str.replace(/,0,/g, ',').replace(/,0(?=[^,])/g, '');
+            console.log(str);
+            // todo: apply changes to referring beats when referenced beat is changed.
+        }
+
         var subStr;
-        if(str.indexOf('{') != -1) { //if theres a group multiply...
+        if(str.indexOf('{') != -1) { //if there's a group multiply...
             var regStart = /\{/g; //gets opening brace of all groups
             var regEnd = /}[\d.+\-\/*Xx]+/g; //gets closing brace of all groups
             //handle each complete multiplier group
@@ -1454,8 +1522,9 @@ window.onload = function() {
             add.lastIndex = 0;
         }
         //remove zero place holders b/c they can cause problems with the 'rounder' addition
-        if (parsedBeat.indexOf('0') !== -1)
+        if (parsedBeat.indexOf(0) !== -1) {
             parsedBeat = parsedBeat.filter(function(x){return x !== 0});
+        }
         //modify the last cell to correct for whatever tiny inaccuracy may exist.
         var rounder = parsedBeat.reduce(function(a,b){return parseFloat(a)+parseFloat(b);}, 0);
         rounder = rounder.toFixed(12) - rounder;
@@ -1792,16 +1861,18 @@ window.onload = function() {
         var beat = [
             [/\)[^,\]@\\|]*\(|\)[^,@]*[a-z]+[^,]*/, 'Invalid final repeat modifier.'],
             [/\(\d*[^\d)]+\d*\)|\(\)/, 'The number of repeats must be an integer.'],
-            [/\][^\d(]|\]$/, 'Missing \'n\' value for multi-cell repeat.'],
+            [/][^\d(]|]$/, 'Missing \'n\' value for multi-cell repeat.'],
             [/,$|,\s*,|^,|^$|,\(|,]/, 'Empty beat cell.'],
-            [/^\[?\D+,|,\[?\D+,|,[^,\d\s]+$|\d[a-wyzA-WYZ]|[+\-*xX/][^\d.]|[^\d).\s,]$|\D\.\D|\D\.$|\.\d+\.|^[a-zA-Z]|,[a-zA-Z]/, 'Invalid beat cell value.'],
+            [/^\[?[^\d$]+,|,\[?[^\d$]+,|,[^,\d\ss]+$|\d[a-wyzA-WYZ]|[+\-*xX/][^\d.]|[^\d).\s,s]$|[^\d$]\.\D|[^\d$]\.$|\.\d+\.|^[a-zA-Z]|,[a-zA-Z]/, 'Invalid beat cell value.'],
             [/@[^a-gA-G\d]|@[a-gA-G]?[b#]?$|@[a-gA-G][^#b\d]/, 'Invalid pitch assignment using \'@\'.'],
-            [/[^\[,\}\{]\[/, 'Incorrect multi-cell repeat syntax'],
+            [/[^\[,}{]\[/, 'Incorrect multi-cell repeat syntax'],
             [/}[\d.+\-\/*Xx]*[^\d.+\-\/*Xx,|\(\]}][\d.+\-/*Xx]*|}[^\d.]/, 'Invalid group multiplication coefficient.'],
             [/\{[^}]*$/, 'Missing the closing brace of a multiplication group.'],
-            [/^[^{]*\}/, 'Missing the opening brace of a multiplication group.'],
+            [/^[^{]*}/, 'Missing the opening brace of a multiplication group.'],
             [/\[[^\]]*$/, 'Missing the closing brace of a multi-cell repeat.'],
-            [/^[^\[]*\]/, 'Missing the opening brace of a multi-cell repeat.']
+            [/^[^\[]*]/, 'Missing the opening brace of a multi-cell repeat.'],
+            [/[^|,\[{]\$/, 'Invalid use of beat reference'],
+            [/\$[^\ds]|\$[\ds]+[^,|\]}(]/, 'Invalid beat reference']
         ];
         var pitch = [
             [/^\D+$/],
@@ -2028,14 +2099,16 @@ window.onload = function() {
                             if(x = str.match(/^[^,|\(\]]+/)) x = x[0];
                             span.style.color = '#CCB96E';
                             break;
+                        case 'reference':
+                            if(x = str.match(/^[^,\\|\(\]\}\{]+/)) x = x[0];
+                            span.style.color = '#9876aa';
+                            break;
                     }
 
                     con = false;
                     if (x==null) continue;
 
                 }else{ //if not continuing
-
-
 
                     var x;
 
@@ -2101,6 +2174,16 @@ window.onload = function() {
                     else if (x = str.match(/^[+\-\/\*xX]/)) { //operators
                         span.style.color = '#cc6322'; //#A8733E
                         var x = x[0];
+                    }
+                    else if (x = str.match(/^\$[\ds&]*[,\\|(\]}{]?/)) { // references
+                        span.style.color = '#9876aa';
+                        var x = x[0];
+                        if (x.search(/^\$[\ds&]*[,\\|(\]}{]/) == -1)
+                            con = 'reference';
+                        else {
+                            con = 'reference';
+                            x = x.replace(/[,\\|(\]}{]/, '');
+                        }
                     }else if (str.search(/^&/) != -1) {
                         node = 0;
                         str = str.replace(/&/, '');
